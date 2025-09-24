@@ -1,0 +1,16 @@
+[BepInPlugin("RainLizard", "Lizard Mod", "1.0")]
+
+<base> Move(int speed, float power) {
+    int steps = 10;
+    if (steps > 5) {
+        return <prop>(speed);
+    } else {
+        return 0;
+    }
+}
+
+<breed> Roar(int volume) {
+    int newVolumen = volume * 2;
+    return newVolumen;
+}
+
