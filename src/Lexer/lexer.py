@@ -1,5 +1,5 @@
 from sly import Lexer
-from errors import error, get_error_count
+from Utils.errors import error, get_error_count
 
 class LizardLexer(Lexer):
     tokens = {

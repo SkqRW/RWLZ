@@ -1,4 +1,4 @@
-from lexer import LizardLexer
+from Lexer.lexer import LizardLexer
 
 """
 uso: bminor.py [-h] [-v] [--scan | --dot | --sym] [filename]
@@ -24,8 +24,8 @@ import ast
 import sys
 
 from rich import print
-from lexer import LizardLexer
-from parser import LizardParser
+from Lexer.lexer import LizardLexer
+from Parser.parser import LizardParser
 from rich.table import Table
 from rich.tree import Tree
 from rich.console import Console
@@ -203,7 +203,7 @@ def print_ast_summary(ast_root):
 def generate_png(ast_root, filename="ast"):
     """Genera un archivo PNG del AST usando Graphviz con nodos tipados"""
     try:
-        from model import Node  # Importar la clase base Node
+        from src.Utils.model import Node  # Importar la clase base Node
         
         # Crear un nuevo grafo dirigido
         dot = Digraph(comment='Lizard AST')
@@ -396,4 +396,4 @@ def main():
 if __name__ == '__main__':
     main()
 
-# python rwlz.py --scan .\Lizard.rwlz,
+# python rwlz.py --scan ..\Test\Lizard.rwlz

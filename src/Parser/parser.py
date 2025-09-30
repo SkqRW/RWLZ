@@ -1,7 +1,7 @@
 from sly import Parser
-from lexer import LizardLexer
-from model import *
-from model import _L
+from Lexer.lexer import LizardLexer
+from Utils.model import *
+from Utils.model import _L
 
 class LizardParser(Parser):
     # Importar tokens del lexer
