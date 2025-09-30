@@ -363,7 +363,7 @@ def main():
         
         if args.scan:
             print_tokens(tokens)
-        
+        return
         parser = LizardParser()
         
         try:

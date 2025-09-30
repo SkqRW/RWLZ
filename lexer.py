@@ -1,20 +1,28 @@
 from sly import Lexer
+from errors import error, get_error_count
 
 class LizardLexer(Lexer):
     tokens = {
-        BASE, BREED, PROP,
-        ID, STRING, NUMBER,
-        IF, ELSE, RETURN,
-        INT, FLOAT, BOOL, STRING_TYPE,
-        EQ, NEQ, LE, GE, LT, GT, ASSIGN, PLUS, MINUS, TIMES, DIVIDE,
+        NUMBER, # Eliminar del parser despues
+
+        BASE, BREED, PROP, 
+        PRINT,
+        ID, STRING, ARRAY, AUTO, FUNCTION,
+        INTEGER_LITERAL, FLOAT_LITERAL, STRING_LITERAL, CHAR_LITERAL,
+        INT, FLOAT, BOOL, CHAR, STRING_TYPE, VOID,
+        IF, ELSE, RETURN, TRUE, FALSE,
+        FOR, WHILE, BREAK, CONTINUE,
+        EQ, NEQ, LE, GE, LT, GT, ASSIGN, 
+        PLUS, MINUS, TIMES, DIVIDE, MODULO,
+        INCREMENT, DECREMENT,
+        PLUS_ASSIGN, MINUS_ASSIGN, TIMES_ASSIGN, DIVIDE_ASSIGN,
         AND, OR, NOT,
+        CONST,
         BEPINPLUGIN
     }
 
-    # Ignorar espacios y tabs
     ignore = ' \t\r'
 
-    # Comentarios tipo //
     ignore_comment = r'//.*'
     ignore_longcomment = r'/\*[\s\S]*?\*/'
 
@@ -26,7 +34,7 @@ class LizardLexer(Lexer):
         self.lineno += t.value.count('\n')
 
     # Tokens literales (símbolos que usamos tal cual)
-    literals = { '(', ')', '{', '}', '[', ']', ',', ';', ':' }
+    literals = '+-*/%^=()[]{}:;,' 
 
     # Definimos las expresiones regulares usando el diccionario
     # Palabras clave especiales (orden importante: más específicas primero)
@@ -34,15 +42,7 @@ class LizardLexer(Lexer):
     BASE = r'<base>'
     BREED = r'<breed>'
     PROP = r'<prop>'
-    
-    # Palabras clave de control y tipos de datos
-    IF = r'if'
-    ELSE = r'else'
-    RETURN = r'return'
-    INT = r'int'
-    FLOAT = r'float'
-    BOOL = r'bool'
-    STRING_TYPE = r'string'
+    PRINT = r'print'
 
     # Operadores de comparación (orden importante: más largos primero)
     EQ = r'=='
@@ -52,40 +52,62 @@ class LizardLexer(Lexer):
     LT = r'<'
     GT = r'>'
     
+    # Operadores de asignación compuesta (orden importante: más largos primero)
+    PLUS_ASSIGN = r'\+='
+    MINUS_ASSIGN = r'-='
+    TIMES_ASSIGN = r'\*='
+    DIVIDE_ASSIGN = r'/='
+    
+    # Operadores de incremento/decremento
+    INCREMENT = r'\+\+'
+    DECREMENT = r'--'
+    
     # Operadores aritméticos y asignación
     ASSIGN = r'='
     PLUS = r'\+'
     MINUS = r'-'
     TIMES = r'\*'
     DIVIDE = r'/'
+    MODULO = r'%'
     
     # Operadores lógicos
     AND = r'&&'
     OR = r'\|\|'
     NOT = r'!'
 
-    # Identificadores (manejados por función @_ más abajo)
-    # ID = r'[a-zA-Z_][a-zA-Z0-9_]*'
+    # Strings entre comillas
+    STRING = r'\".*?\"'
     
     # Definimos todos los tokens en un diccionario para fácil referencia
     keywords = {
-        # Palabras clave especiales
-        'BepInPlugin': 'BEPINPLUGIN',
+        # Palabras clave especiales (todas en minúsculas)
         'bepinplugin': 'BEPINPLUGIN',
         '<base>': 'BASE',
         '<breed>': 'BREED', 
         '<prop>': 'PROP',
+        'print': 'PRINT',
+        'function': 'FUNCTION',
+        'auto': 'AUTO',
+        'array': 'ARRAY',
         
         # Palabras clave de control
         'if': 'IF',
         'else': 'ELSE', 
         'return': 'RETURN',
+        'for': 'FOR',
+        'while': 'WHILE',
+        'break': 'BREAK',
+        'continue': 'CONTINUE',
+        'true': 'TRUE',
+        'false': 'FALSE',
+
         
         # Tipos de datos
         'int': 'INT',
         'float': 'FLOAT',
         'bool': 'BOOL',
-        'string': 'STRING_TYPE',
+        'string': 'STRING',
+        'const': 'CONST',
         
         # Operadores de comparación
         '==': 'EQ',
@@ -95,27 +117,50 @@ class LizardLexer(Lexer):
         '<': 'LT',
         '>': 'GT',
         
+        # Operadores de asignación compuesta
+        '+=': 'PLUS_ASSIGN',
+        '-=': 'MINUS_ASSIGN',
+        '*=': 'TIMES_ASSIGN',
+        '/=': 'DIVIDE_ASSIGN',
+        
+        # Operadores de incremento/decremento
+        '++': 'INCREMENT',
+        '--': 'DECREMENT',
+        
         # Operadores aritméticos y asignación
         '=': 'ASSIGN',
         '+': 'PLUS',
         '-': 'MINUS',
         '*': 'TIMES',
         '/': 'DIVIDE',
+        '%': 'MODULO',
         
         # Operadores lógicos
         '&&': 'AND',
         '||': 'OR',
         '!': 'NOT'
     }
-    
-    # Números enteros o floats - patrón único que maneja ambos
-    @_(r'\d+(\.\d+)?')
-    def NUMBER(self, t):
-        if '.' in t.value:
-            t.value = float(t.value)
-        else:
-            t.value = int(t.value)
-        return t
+
+    # Expresiones regulares para literales
+    FLOAT_LITERAL = r'(0\.¿[0-9]+)|([1-9][0-9]*\.[0-9]+)([eE][+-]?[0-9]+)?'  # Números flotantes
+    INTEGER_LITERAL = r'0|[1-9][0-9]*'  # Números enteros
+    CHAR_LITERAL = r"\'([\x20-\x7E]|\\([abefnrtv\\’\”]|0x[0-9a-fA-F]{2}))\'"  # Caracteres
+    STRING_LITERAL = r'\"([\x20-\x7E]|\\([abefnrtv\\’\”]|0x[0-9a-fA-F]{2}))*\"'  # Cadenas de texto
+
+    @_(r'(0\.[0-9]+)|([1-9][0-9]*\.[0-9]+)([eE][+-]?[0-9]+)?')
+    def INVALID_FLOAT(self, t):
+        error(f"Número de punto flotante inválido: {t.value} en la línea {t.lineno}", t.lineno)
+        # No retorna el token para que no sea procesado como válido
+
+    @_(r'\"[^\"]*\n?')
+    def INVALID_STRING(self, t):
+        error(f"Cadena de texto no válida (sin cierre de comillas): {t.value}", t.lineno)
+        # No retorna el token para que no sea procesado como válido
+
+    @_(r"'[^']*\n?")
+    def INVALID_CHAR(self, t):
+        error(f"Literal de carácter no válido (sin cierre de comillas): {t.value}", t.lineno)
+        # No retorna el token para que no sea procesado como válido
 
     @_(r'[A-Za-z_][A-Za-z0-9_]*')
     def ID(self, t):
@@ -124,15 +169,10 @@ class LizardLexer(Lexer):
         Si la palabra está en la lista de palabras reservadas, asigna el tipo correspondiente.
         Si no, la clasifica como identificador (ID).
         """
-        # Primero verificamos con el valor original (case-sensitive para tokens especiales)
         if t.value in self.keywords:
             t.type = self.keywords[t.value]
-        # Luego verificamos en minúsculas para palabras clave normales
-        elif t.value.lower() in self.keywords:
-            t.type = self.keywords[t.value.lower()]
         else:
             t.type = 'ID'
         return t
 
-    # Strings entre comillas
-    STRING = r'\".*?\"'
+    
