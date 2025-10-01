@@ -26,4 +26,5 @@ def reset_errors():
     global _errors_detected
     _errors_detected = 0
 
+
 # TO DO: Colocar advertencias

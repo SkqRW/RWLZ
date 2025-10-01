@@ -1,6 +1,20 @@
 from dataclasses import dataclass, field
 from typing import List, Union, Optional
 from abc import ABC, abstractmethod
+from enum import Enum
+from .errors import error
+
+# =====================================================================
+# Enums
+# =====================================================================
+
+class LiteralType(Enum):
+    """Enum para tipos de literales"""
+    INT = "int"
+    FLOAT = "float"
+    STRING = "string"
+    CHAR = "char"
+    BOOLEAN = "boolean"
 
 # Importación opcional de Rich para pretty printing
 try:
@@ -127,43 +141,44 @@ class Node(ABC):
 
 @dataclass
 class Statement(Node):
-    """Clase base para sentencias"""
+    pass
+
+@dataclass 
+class Expression(Node):
     pass
 
 @dataclass
-class Expression(Node):
-    """Clase base para expresiones"""
-    pass
+class Literal(Expression):
+    value : Union[int, float, str, bool]
+    type  : Optional[LiteralType] = None
 
 @dataclass
 class Type(Node):
-    """Representa un tipo de dato"""
     name: str
 
 # =====================================================================
-# Programa y Metadata
+# Program y Metadata
 # =====================================================================
 
 @dataclass
 class Program(Node):
-    """Nodo raíz del programa"""
+    """ Main Node of the language """
     metadata: Optional['Metadata']
     functions: List['Function']
 
 @dataclass
 class Metadata(Node):
-    """Metadatos BepInPlugin"""
-    plugin_name: str
-    version: str
-    guid: str
+    """ Metadatos BepInPlugin """
+    ID: str
+    NAME: str
+    VERSION: str
 
 # =====================================================================
-# Tipos
+# Data Types
 # =====================================================================
 
 @dataclass
 class Type(Node):
-    """Representa un tipo de dato"""
     name: str
     
     def __str__(self):
@@ -175,28 +190,31 @@ class Type(Node):
 
 @dataclass
 class Function(Node):
-    """Clase base para funciones"""
     name: str
     params: List['Parameter']
     body: 'Block'
+    return_type: Optional['Type'] = None
 
 @dataclass
 class BaseFunction(Function):
     """Función con modificador <base>"""
     def __str__(self):
-        return f"<base> {self.name}"
+        return_str = f" -> {self.return_type}" if self.return_type else ""
+        return f"<base> {self.name}{return_str}"
 
 @dataclass
 class BreedFunction(Function):
     """Función con modificador <breed>"""
     def __str__(self):
-        return f"<breed> {self.name}"
+        return_str = f" -> {self.return_type}" if self.return_type else ""
+        return f"<breed> {self.name}{return_str}"
 
 @dataclass
 class NormalFunction(Function):
     """Función normal sin modificadores"""
     def __str__(self):
-        return self.name
+        return_str = f" -> {self.return_type}" if self.return_type else ""
+        return f"{self.name}{return_str}"
 
 @dataclass
 class Parameter(Node):
@@ -218,22 +236,89 @@ class Block(Statement):
 
 @dataclass
 class VarDecl(Statement):
-    """Declaración de variable: tipo nombre = valor;"""
     var_type: Type
     name: str
-    value: Expression
+    value: Optional[Literal] = None
+    is_const: bool = False
+    
+    def __post_init__(self):
+        if self.is_const and self.value is None:
+            error(f"The const '{self.name}' should have an initial value", self.lineno)
     
     def __str__(self):
-        return f"{self.var_type} {self.name} = {self.value};"
+        const_str = "const " if self.is_const else ""
+        if self.value:
+            return f"{const_str}{self.var_type} {self.name} = {self.value};"
+        return f"{const_str}{self.var_type} {self.name};"
+
+@dataclass
+class ArrayDecl(Statement):
+    """Declaración de array: tipo nombre[tamaño] = {...};"""
+    var_type: Type
+    name: str
+    size: Optional[Expression] = None
+    values: Optional[List[Expression]] = None
+    is_const: bool = False
+    
+    def __str__(self):
+        const_str = "const " if self.is_const else ""
+        size_str = f"[{self.size}]" if self.size else "[]"
+        if self.values:
+            vals = ", ".join(str(v) for v in self.values)
+            return f"{const_str}{self.var_type} {self.name}{size_str} = [{vals}];"
+        return f"{const_str}{self.var_type} {self.name}{size_str};"
 
 @dataclass
 class Assignment(Statement):
     """Asignación: nombre = valor;"""
     name: str
-    value: Expression
+    value: Literal
     
     def __str__(self):
         return f"{self.name} = {self.value};"
+
+@dataclass
+class CompoundAssignment(Statement):
+    """Asignación compuesta: nombre op= valor;"""
+    name: str
+    operator: str  # +=, -=, *=, /=
+    value: Literal
+    
+    def __str__(self):
+        return f"{self.name} {self.operator} {self.value};"
+
+@dataclass
+class ArrayAssignment(Statement):
+    """Asignación a array: nombre[índice] = valor;"""
+    name: str
+    index: Expression
+    value: Expression
+    
+    def __str__(self):
+        return f"{self.name}[{self.index}] = {self.value};"
+
+@dataclass
+class ArrayCompoundAssignment(Statement):
+    """Asignación compuesta a array: nombre[índice] op= valor;"""
+    name: str
+    index: Expression
+    operator: str  # +=, -=, *=, /=
+    value: Expression
+    
+    def __str__(self):
+        return f"{self.name}[{self.index}] {self.operator} {self.value};"
+
+@dataclass
+class IncrementStatement(Statement):
+    """Incremento/decremento como sentencia: ++var, var++, --var, var--"""
+    variable: str
+    operator: str  # ++, --
+    is_prefix: bool  # True para ++var, False para var++
+    
+    def __str__(self):
+        if self.is_prefix:
+            return f"{self.operator}{self.variable};"
+        return f"{self.variable}{self.operator};"
 
 @dataclass
 class FunctionCallStmt(Statement):
@@ -256,20 +341,66 @@ class IfStatement(Statement):
         return f"if ({self.condition}) {{ ... }}"
 
 @dataclass
-class ReturnStatement(Statement):
-    """Sentencia return"""
-    value: Expression
+class WhileStatement(Statement):
+    """Sentencia while"""
+    condition: Expression
+    body: Block
     
     def __str__(self):
-        return f"return {self.value};"
+        return f"while ({self.condition}) {{ ... }}"
+
+@dataclass
+class ForStatement(Statement):
+    """Sentencia for"""
+    init: Optional[Statement]  # Inicialización
+    condition: Optional[Expression]  # Condición
+    update: Optional[Statement]  # Actualización
+    body: Block
+    
+    def __str__(self):
+        init_str = str(self.init) if self.init else ""
+        cond_str = str(self.condition) if self.condition else ""
+        update_str = str(self.update) if self.update else ""
+        return f"for ({init_str} {cond_str}; {update_str}) {{ ... }}"
+
+@dataclass
+class BreakStatement(Statement):
+    """Sentencia break"""
+    
+    def __str__(self):
+        return "break;"
+
+@dataclass
+class ContinueStatement(Statement):
+    """Sentencia continue"""
+    
+    def __str__(self):
+        return "continue;"
+
+@dataclass
+class ReturnStatement(Statement):
+    """Sentencia return"""
+    value: Optional[Expression] = None
+    
+    def __str__(self):
+        if self.value:
+            return f"return {self.value};"
+        return "return;"
+
+@dataclass
+class PrintStatement(Statement):
+    """Sentencia print"""
+    expression: Expression
+    
+    def __str__(self):
+        return f"print({self.expression});"
 
 # =====================================================================
 # Expresiones
 # =====================================================================
 
 @dataclass
-class BinaryOperation(Expression):
-    """Operación binaria"""
+class BinOper(Expression):
     operator: str
     left: Expression
     right: Expression
@@ -278,13 +409,51 @@ class BinaryOperation(Expression):
         return f"({self.left} {self.operator} {self.right})"
 
 @dataclass
-class UnaryOperation(Expression):
-    """Operación unaria"""
+class UnaryOper(Expression):
     operator: str
     operand: Expression
     
     def __str__(self):
         return f"{self.operator}{self.operand}"
+
+@dataclass
+class IncrementExpression(Expression):
+    variable: str
+    operator: str  # ++, --
+    is_prefix: bool  # True para ++var, False para var++
+    
+    def __str__(self):
+        if self.is_prefix:
+            return f"{self.operator}{self.variable}"
+        return f"{self.variable}{self.operator}"
+
+@dataclass
+class AssignmentExpression(Expression):
+    """Expresión de asignación: var = valor, var += valor, etc."""
+    variable: str
+    operator: str  # =, +=, -=, *=, /=
+    value: Expression
+    
+    def __str__(self):
+        return f"{self.variable} {self.operator} {self.value}"
+
+@dataclass
+class ArrayAccess(Expression):
+    """Acceso a array: nombre[índice]"""
+    name: str
+    index: Expression
+    
+    def __str__(self):
+        return f"{self.name}[{self.index}]"
+
+@dataclass
+class ArrayLiteral(Expression):
+    """Literal de array: [1, 2, 3]"""
+    elements: List[Expression]
+    
+    def __str__(self):
+        elements_str = ", ".join(str(e) for e in self.elements)
+        return f"[{elements_str}]"
 
 @dataclass
 class CallExpression(Expression):
@@ -305,20 +474,66 @@ class Variable(Expression):
         return self.name
 
 @dataclass
-class NumberLiteral(Expression):
+class NumberLiteral(Literal):
     """Literal numérico"""
     value: Union[int, float]
     
     def __str__(self):
         return str(self.value)
+    
+@dataclass  
+class Float(Literal):
+    value: float
+    def __post_init__(self):
+        assert isinstance(self.value, float), "The value should be a 'float'"
+        self.type = LiteralType.FLOAT
+
+    def __str__(self):
+        return str(self.value)
 
 @dataclass
-class StringLiteral(Expression):
-    """Literal de cadena"""
+class Integer(Literal):
+    value: int
+    def __post_init__(self):
+        assert isinstance(self.value, int), "The value should be an 'integer'"
+        self.type = LiteralType.INT
+
+    def __str__(self):
+        return str(self.value)
+
+@dataclass
+class String(Literal):
     value: str
-    
+
+    def __post_init__(self):
+        assert isinstance(self.value, str), "The value should be a 'string'"
+        self.type = LiteralType.STRING
+
     def __str__(self):
         return f'"{self.value}"'
+
+@dataclass
+class Char(Literal):   
+    value: str
+
+    def __post_init__(self):
+        assert isinstance(self.value, str), "The value should be a 'char'"
+        assert len(self.value) == 1, "Char must be a single character"
+        self.type = LiteralType.CHAR
+    
+    def __str__(self):
+        return f"'{self.value}'"
+
+@dataclass
+class Boolean(Literal):
+    value: bool
+
+    def __post_init__(self):
+        assert isinstance(self.value, bool), "The value should be a 'boolean'"
+        self.type = LiteralType.BOOLEAN
+    
+    def __str__(self):
+        return "true" if self.value else "false"
 
 @dataclass
 class PropExpression(Expression):
@@ -329,12 +544,20 @@ class PropExpression(Expression):
         return f"<prop>({self.variable})"
 
 @dataclass
-class BooleanLiteral(Expression):
-    """Literal booleano"""
-    value: bool
+class BaseExpression(Expression):
+    """Expresión <base>(expression)"""
+    expression: Expression
     
     def __str__(self):
-        return "true" if self.value else "false"
+        return f"<base>({self.expression})"
+
+@dataclass
+class BreedExpression(Expression):
+    """Expresión <breed>(expression)"""
+    expression: Expression
+    
+    def __str__(self):
+        return f"<breed>({self.expression})"
 
 # =====================================================================
 # Visitor Pattern
@@ -380,7 +603,7 @@ class PrettyPrinter(Visitor):
         return result
     
     def visit_Metadata(self, node: Metadata):
-        return f'[BepInPlugin("{node.plugin_name}", "{node.version}", "{node.guid}")]'
+        return f'[BepInPlugin("{node.ID}", "{node.VERSION}", "{node.NAME}")]'
     
     def visit_BaseFunction(self, node: BaseFunction):
         return self._visit_function(node, "<base>")
@@ -416,10 +639,32 @@ class PrettyPrinter(Visitor):
         return "{\n" + "\n".join(statements) + "\n" + self._indent() + "}"
     
     def visit_VarDecl(self, node: VarDecl):
-        return f"{self.visit(node.var_type)} {node.name} = {self.visit(node.value)};"
+        const_str = "const " if node.is_const else ""
+        if node.value:
+            return f"{const_str}{self.visit(node.var_type)} {node.name} = {self.visit(node.value)};"
+        return f"{const_str}{self.visit(node.var_type)} {node.name};"
+    
+    def visit_ArrayDecl(self, node: ArrayDecl):
+        const_str = "const " if node.is_const else ""
+        size_str = f"[{self.visit(node.size)}]" if node.size else "[]"
+        if node.values:
+            vals = ", ".join(self.visit(v) for v in node.values)
+            return f"{const_str}{self.visit(node.var_type)} {node.name}{size_str} = [{vals}];"
+        return f"{const_str}{self.visit(node.var_type)} {node.name}{size_str};"
     
     def visit_Assignment(self, node: Assignment):
         return f"{node.name} = {self.visit(node.value)};"
+    
+    def visit_CompoundAssignment(self, node: CompoundAssignment):
+        return f"{node.name} {node.operator} {self.visit(node.value)};"
+    
+    def visit_ArrayAssignment(self, node: ArrayAssignment):
+        return f"{node.name}[{self.visit(node.index)}] = {self.visit(node.value)};"
+    
+    def visit_IncrementStatement(self, node: IncrementStatement):
+        if node.is_prefix:
+            return f"{node.operator}{node.variable};"
+        return f"{node.variable}{node.operator};"
     
     def visit_FunctionCallStmt(self, node: FunctionCallStmt):
         return f"{self.visit(node.call)};"
@@ -430,14 +675,49 @@ class PrettyPrinter(Visitor):
             result += f" else {self.visit(node.else_block)}"
         return result
     
-    def visit_ReturnStatement(self, node: ReturnStatement):
-        return f"return {self.visit(node.value)};"
+    def visit_WhileStatement(self, node: WhileStatement):
+        return f"while ({self.visit(node.condition)}) {self.visit(node.body)}"
     
-    def visit_BinaryOperation(self, node: BinaryOperation):
+    def visit_ForStatement(self, node: ForStatement):
+        init_str = self.visit(node.init).rstrip(';') if node.init else ""
+        cond_str = self.visit(node.condition) if node.condition else ""
+        update_str = self.visit(node.update).rstrip(';') if node.update else ""
+        return f"for ({init_str}; {cond_str}; {update_str}) {self.visit(node.body)}"
+    
+    def visit_BreakStatement(self, node: BreakStatement):
+        return "break;"
+    
+    def visit_ContinueStatement(self, node: ContinueStatement):
+        return "continue;"
+    
+    def visit_ReturnStatement(self, node: ReturnStatement):
+        if node.value:
+            return f"return {self.visit(node.value)};"
+        return "return;"
+    
+    def visit_PrintStatement(self, node: PrintStatement):
+        return f"print({self.visit(node.expression)});"
+    
+    def visit_BinaryOperation(self, node: BinOper):
         return f"({self.visit(node.left)} {node.operator} {self.visit(node.right)})"
     
-    def visit_UnaryOperation(self, node: UnaryOperation):
+    def visit_UnaryOperation(self, node: UnaryOper):
         return f"{node.operator}{self.visit(node.operand)}"
+    
+    def visit_IncrementExpression(self, node: IncrementExpression):
+        if node.is_prefix:
+            return f"{node.operator}{node.variable}"
+        return f"{node.variable}{node.operator}"
+    
+    def visit_AssignmentExpression(self, node: AssignmentExpression):
+        return f"{node.variable} {node.operator} {self.visit(node.value)}"
+    
+    def visit_ArrayAccess(self, node: ArrayAccess):
+        return f"{node.name}[{self.visit(node.index)}]"
+    
+    def visit_ArrayLiteral(self, node: ArrayLiteral):
+        elements = ", ".join(self.visit(e) for e in node.elements)
+        return f"[{elements}]"
     
     def visit_CallExpression(self, node: CallExpression):
         args = ", ".join(self.visit(arg) for arg in node.arguments)
@@ -449,11 +729,20 @@ class PrettyPrinter(Visitor):
     def visit_NumberLiteral(self, node: NumberLiteral):
         return str(node.value)
     
-    def visit_StringLiteral(self, node: StringLiteral):
+    def visit_StringLiteral(self, node: String):
         return f'"{node.value}"'
+    
+    def visit_CharLiteral(self, node: Char):
+        return f"'{node.value}'"
+    
+    def visit_BooleanLiteral(self, node: Boolean):
+        return "true" if node.value else "false"
     
     def visit_PropExpression(self, node: PropExpression):
         return f"<prop>({node.variable})"
     
-    def visit_BooleanLiteral(self, node: BooleanLiteral):
-        return "true" if node.value else "false"
+    def visit_BaseExpression(self, node: BaseExpression):
+        return f"<base>({self.visit(node.expression)})"
+    
+    def visit_BreedExpression(self, node: BreedExpression):
+        return f"<breed>({self.visit(node.expression)})"

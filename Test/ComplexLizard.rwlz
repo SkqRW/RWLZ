@@ -1,0 +1,88 @@
+[BepInPlugin("RainLizard", "Lizard Advanced Mod", "2.0")]
+
+/* ------------------- |
+|   Archivo de prueba  |
+|                     */
+
+// Función principal con modificador <base>
+int Initialize(int maxHealth, float powerMultiplier) {
+    // Declaraciones de variables
+    const int MAX_CREATURES = 100;
+    int playerHealth = maxHealth;
+    float damage = 10.5;
+    bool isActive = true;
+    array int scores = [10, 20, 30, 40, 50];
+    
+    // Operaciones aritméticas
+    playerHealth += 50;
+    damage *= powerMultiplier;
+    scores[0] = scores[0] + 5;
+    
+    // Bucle for con incremento
+    for (int i = 0; i < 5; ++i) {
+        scores[i] *= 2;
+        print("Score procesado: " + scores[i]);
+    }
+    
+    // Condicional compleja
+    if (playerHealth > 100 && isActive) {
+        print("Jugador en estado óptimo");
+        return playerHealth;
+    } else {
+        print("Jugador necesita curación");
+        return 0;
+    }
+}
+
+// Función con modificador <breed>
+int ProcessCreatures(array int creatures, int count) {
+    int processed = 0;
+    
+    // Bucle while
+    while (processed < count) {
+        creatures[processed] += 10;
+        ++processed;
+        
+        if (creatures[processed - 1] > 50) {
+            break;
+        }
+    }
+    
+    return processed;
+}
+
+// Función normal con arrays y operadores
+float CalculateDamage(float baseDamage, bool isCritical) {
+    float finalDamage = baseDamage;
+    
+    // Operadores compuestos
+    if (isCritical) {
+        finalDamage *= 1.5;
+    } else {
+        finalDamage /= 2.0;
+    }
+    
+    // Operadores de incremento/decremento
+    int hitCount = 1;
+    hitCount++;
+    --hitCount;
+    
+    return finalDamage * hitCount;
+}
+
+// Función con bucles anidados y arrays
+int ProcessMatrix() {
+    array int matrix[10];
+    
+    for (int i = 0; i < 10; i++) {
+        matrix[i] = i * 2;
+        
+        if (matrix[i] % 3 == 0) {
+            continue;
+        }
+        
+        print("Valor procesado: " + matrix[i]);
+    }
+    
+    return matrix[0];
+}

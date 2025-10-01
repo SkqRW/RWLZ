@@ -3,13 +3,11 @@ from Utils.errors import error, get_error_count
 
 class LizardLexer(Lexer):
     tokens = {
-        NUMBER, # Eliminar del parser despues
-
         BASE, BREED, PROP, 
         PRINT,
-        ID, STRING, ARRAY, AUTO, FUNCTION,
+        ID, ARRAY, AUTO,
         INTEGER_LITERAL, FLOAT_LITERAL, STRING_LITERAL, CHAR_LITERAL,
-        INT, FLOAT, BOOL, CHAR, STRING_TYPE, VOID,
+        INT, FLOAT, BOOL, CHAR, STRING, VOID,
         IF, ELSE, RETURN, TRUE, FALSE,
         FOR, WHILE, BREAK, CONTINUE,
         EQ, NEQ, LE, GE, LT, GT, ASSIGN, 
@@ -86,7 +84,6 @@ class LizardLexer(Lexer):
         '<breed>': 'BREED', 
         '<prop>': 'PROP',
         'print': 'PRINT',
-        'function': 'FUNCTION',
         'auto': 'AUTO',
         'array': 'ARRAY',
         
@@ -142,11 +139,22 @@ class LizardLexer(Lexer):
     }
 
     # Expresiones regulares para literales
-    FLOAT_LITERAL = r'(0\.¿[0-9]+)|([1-9][0-9]*\.[0-9]+)([eE][+-]?[0-9]+)?'  # Números flotantes
+    FLOAT_LITERAL = r'([0-9]+\.[0-9]+([eE][+-]?[0-9]+)?)|([0-9]+[eE][+-]?[0-9]+)'  # Números flotantes
     INTEGER_LITERAL = r'0|[1-9][0-9]*'  # Números enteros
     CHAR_LITERAL = r"\'([\x20-\x7E]|\\([abefnrtv\\’\”]|0x[0-9a-fA-F]{2}))\'"  # Caracteres
     STRING_LITERAL = r'\"([\x20-\x7E]|\\([abefnrtv\\’\”]|0x[0-9a-fA-F]{2}))*\"'  # Cadenas de texto
 
+    @_(r'([0-9]+\.[0-9]+([eE][+-]?[0-9]+)?)|([0-9]+[eE][+-]?[0-9]+)')
+    def FLOAT(self, t):
+        t.type = 'FLOAT'
+        return float(t.value)
+    
+    @_(r'0|[1-9][0-9]*')
+    def NUMBER(self, t):
+        t.type = 'NUMBER'
+        return int(t.value)
+    
+    # tomado de b-minor
     @_(r'(0\.[0-9]+)|([1-9][0-9]*\.[0-9]+)([eE][+-]?[0-9]+)?')
     def INVALID_FLOAT(self, t):
         error(f"Número de punto flotante inválido: {t.value} en la línea {t.lineno}", t.lineno)
@@ -161,7 +169,7 @@ class LizardLexer(Lexer):
     def INVALID_CHAR(self, t):
         error(f"Literal de carácter no válido (sin cierre de comillas): {t.value}", t.lineno)
         # No retorna el token para que no sea procesado como válido
-
+    
     @_(r'[A-Za-z_][A-Za-z0-9_]*')
     def ID(self, t):
         """
@@ -175,4 +183,17 @@ class LizardLexer(Lexer):
             t.type = 'ID'
         return t
 
+
+
+    @_(r'\n+')
+    def ignore_newline(self, t):
+        self.lineno = t.value.count('\n')
+    
+    @_(r'//.*')
+    def ignore_cppcomment(self, t):
+        pass
+    
+    @_(r'/\*(.|\n)*\*/')
+    def ignore_comment(self, t):
+        self.lineno = t.value.count('\n')
     

@@ -169,7 +169,7 @@ def print_ast_summary(ast_root):
     
     if hasattr(ast_root, 'metadata') and ast_root.metadata:
         program_info["has_metadata"] = True
-        program_info["metadata_info"] = f"{ast_root.metadata.plugin_name} v{ast_root.metadata.version}"
+        program_info["metadata_info"] = f"{ast_root.metadata.ID} v{ast_root.metadata.VERSION}"
     
     if hasattr(ast_root, 'functions'):
         program_info["functions"] = len(ast_root.functions)
@@ -203,7 +203,7 @@ def print_ast_summary(ast_root):
 def generate_png(ast_root, filename="ast"):
     """Genera un archivo PNG del AST usando Graphviz con nodos tipados"""
     try:
-        from src.Utils.model import Node  # Importar la clase base Node
+        from Utils.model import Node  # Importar la clase base Node
         
         # Crear un nuevo grafo dirigido
         dot = Digraph(comment='Lizard AST')
@@ -363,7 +363,7 @@ def main():
         
         if args.scan:
             print_tokens(tokens)
-        return
+
         parser = LizardParser()
         
         try:

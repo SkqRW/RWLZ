@@ -1,12 +1,17 @@
 [BepInPlugin("RainLizard", "Lizard Mod", "1.0")]
 
-Move(int speed, float power) {
+/* ------------------- |
+|   Archivo de prueba  |
+|                     */
+
+bool Move(int speed, float power) {
     int steps = 10;
     print("moviendo al jugador");
     if (steps > 5) {
-        return <prop>(speed);
+        // modificar el speed
+        return false;
     } else {
-        return 0;
+        return true;
     }
 }
 
