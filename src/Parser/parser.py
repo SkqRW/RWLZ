@@ -1,22 +1,3 @@
-"""
-🦎 LIZARD LANGUAGE PARSER
-=========================
-
-Parser para el lenguaje Lizard usando SLY (Sly Lex-Yacc)
-Maneja la conversión de tokens a AST (Árbol de Sintaxis Abstracta)
-
-ESTRUCTURA DEL ARCHIVO:
-- Líneas 30-50:   Configuración y precedencias
-- Líneas 51-80:   Programa principal y metadata  
-- Líneas 81-140:  Definiciones de funciones
-- Líneas 141-200: Parámetros y tipos
-- Líneas 201-280: Sentencias (statements)
-- Líneas 281-320: Bucles y control de flujo
-- Líneas 321-360: Llamadas a funciones
-- Líneas 361-420: Expresiones aritméticas y lógicas
-- Líneas 421-460: Literales y manejo de errores
-"""
-
 from sly import Parser
 from Lexer.lexer import LizardLexer
 from Utils.model import *
@@ -30,7 +11,7 @@ class LizardParser(Parser):
     
     # Importar tokens del lexer
     tokens = LizardLexer.tokens
-    debugfile = 'LizardParser.out'
+    #debugfile = 'LizardParser.out'
 
     # Precedencias para expresiones (para evitar ambigüedad)
     # Orden: menor precedencia (arriba) a mayor precedencia (abajo)
@@ -50,27 +31,24 @@ class LizardParser(Parser):
     # PROGRAMA PRINCIPAL Y METADATA
     # =====================================================================
     
-    @_('metadata_decl function_list')
+    @_('metadata_decl decl_list')
     def program(self, p):
-        # Metadatos opcionales en caso de que el proyecto se compile con su json identificador
+        # Optional metadata in case the project is compiled with its identifier json
         # El identificador es de BepInEx para mods
-        return _L(Program(metadata=p.metadata_decl, functions=p.function_list), p.lineno)
+        return _L(Program(metadata=p.metadata_decl, functions=p.decl_list), p.lineno)
 
-    @_('function_list')
+    @_('decl_list')
     def program(self, p):
-        return _L(Program(metadata=None, functions=p.function_list), p.lineno)
+        return _L(Program(metadata=None, functions=p.decl_list), p.lineno)
 
+    @_('decl decl_list')
+    def decl_list(self, p):
+        return [p.decl] + p.decl_list
 
+    @_('decl')
+    def decl_list(self, p):
+        return [p.decl]
 
-    @_('function_list function_def')
-    def function_list(self, p):
-        """Lista de funciones (múltiples)"""
-        return p.function_list + [p.function_def]
-
-    @_('function_def')
-    def function_list(self, p):
-        """Lista de funciones (una sola)"""
-        return [p.function_def]
 
     # BEPINPLUGIN Metadata
     # BepInPlugin: [BepInPlugin("name", "version", "guid")]
@@ -83,12 +61,12 @@ class LizardParser(Parser):
         ), p.lineno)
 
     # =====================================================================
-    # DEFINICIONES DE FUNCIONES
+    # Function Declarations 
     # =====================================================================
     
+    # NO IN USE STILL
     @_('BASE type ID "(" param_list_opt ")" block')
-    def function_def(self, p):
-        """Función con modificador <base>: <base> tipo nombre(params) { ... }"""
+    def decl(self, p):
         return _L(BaseFunction(
             name=p.ID,
             return_type=p.type,
@@ -96,9 +74,9 @@ class LizardParser(Parser):
             body=p.block
         ), p.lineno)
 
+    # NO IN USE STILL
     @_('BREED type ID "(" param_list_opt ")" block')  
-    def function_def(self, p):
-        """Función con modificador <breed>: <breed> tipo nombre(params) { ... }"""
+    def decl(self, p):
         return _L(BreedFunction(
             name=p.ID,
             return_type=p.type,
@@ -107,8 +85,7 @@ class LizardParser(Parser):
         ), p.lineno)
 
     @_('type ID "(" param_list_opt ")" block')
-    def function_def(self, p):
-        """Función normal con tipo: tipo nombre(params) { ... }"""
+    def decl(self, p):
         return _L(NormalFunction(
             name=p.ID,
             return_type=p.type,
@@ -116,51 +93,36 @@ class LizardParser(Parser):
             body=p.block
         ), p.lineno)
 
-    @_('ID "(" param_list_opt ")" block')
-    def function_def(self, p):
-        return _L(NormalFunction(
-            name=p.ID,
-            return_type=None,
-            params=p.param_list_opt,
-            body=p.block
-        ), p.lineno)
-
     # =====================================================================
-    # PARÁMETROS DE FUNCIONES
+    # Function Parameters
     # =====================================================================
     
     @_('param_list')
     def param_list_opt(self, p):
-        """Lista de parámetros (opcional): (param1, param2, ...)"""
         return p.param_list
 
     @_('')
     def param_list_opt(self, p):
-        """Lista de parámetros vacía: ()"""
         return []
 
-    @_('param_list "," param')
+    @_('param "," param_list')
     def param_list(self, p):
-        """Múltiples parámetros: param1, param2, ..."""
-        return p.param_list + [p.param]
+        return [p.param] + p.param_list
 
     @_('param')
     def param_list(self, p):
-        """Un solo parámetro"""
         return [p.param]
 
     @_('type ID')
     def param(self, p):
-        """Parámetro normal: tipo nombre"""
         return _L(Parameter(name=p.ID, param_type=p.type), p.lineno)
 
     @_('CONST type ID')
     def param(self, p):
-        """Parámetro constante: const tipo nombre"""
         return _L(Parameter(name=p.ID, param_type=p.type), p.lineno)
 
     # =====================================================================
-    # TIPOS DE DATOS
+    # DATA TYPES
     # =====================================================================
     
     @_('INT')
@@ -172,12 +134,10 @@ class LizardParser(Parser):
     @_('AUTO')
     @_('ID')
     def type(self, p):
-        """Tipos primitivos: int, float, bool, char, string, void, auto, ID"""
         return _L(Type(name=p[0]), p.lineno)
 
     @_('ARRAY type')
     def type(self, p):
-        """Tipos array: array tipo"""
         return _L(Type(name=f"array {p.type.name}"), p.lineno)
 
     # =====================================================================
@@ -205,17 +165,14 @@ class LizardParser(Parser):
     
     @_('type ID ASSIGN expr ";"')
     def statement(self, p):
-        """Declaración con valor: tipo nombre = expresión;"""
         return _L(VarDecl(var_type=p.type, name=p.ID, value=p.expr), p.lineno)
 
     @_('type ID ";"')
     def statement(self, p):
-        """Declaración sin valor: tipo nombre;"""
         return _L(VarDecl(var_type=p.type, name=p.ID), p.lineno)
 
     @_('CONST type ID ASSIGN expr ";"')
     def statement(self, p):
-        """Declaración constante: const tipo nombre = expresión;"""
         return _L(VarDecl(var_type=p.type, name=p.ID, value=p.expr, is_const=True), p.lineno)
 
     @_('type ID "[" expr "]" ";"')
@@ -230,49 +187,45 @@ class LizardParser(Parser):
     def statement(self, p):
         return _L(ArrayDecl(var_type=p.type, name=p.ID, size=p.expr, values=p.expr_list), p.lineno)
 
-    @_('type ID ASSIGN "[" expr_list "]" ";"')
-    def statement(self, p):
-        return _L(ArrayDecl(var_type=p.type, name=p.ID, values=p.expr_list), p.lineno)
-
     @_('ID ASSIGN expr ";"')
     def statement(self, p):
-        return _L(Assignment(name=p.ID, value=p.expr), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="=", value=p.expr), p.lineno)
 
     @_('ID PLUS_ASSIGN expr ";"')
     def statement(self, p):
-        return _L(CompoundAssignment(name=p.ID, operator="+=", value=p.expr), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="+=", value=p.expr), p.lineno)
 
     @_('ID MINUS_ASSIGN expr ";"')
     def statement(self, p):
-        return _L(CompoundAssignment(name=p.ID, operator="-=", value=p.expr), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="-=", value=p.expr), p.lineno)
 
     @_('ID TIMES_ASSIGN expr ";"')
     def statement(self, p):
-        return _L(CompoundAssignment(name=p.ID, operator="*=", value=p.expr), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="*=", value=p.expr), p.lineno)
 
     @_('ID DIVIDE_ASSIGN expr ";"')
     def statement(self, p):
-        return _L(CompoundAssignment(name=p.ID, operator="/=", value=p.expr), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="/=", value=p.expr), p.lineno)
 
     @_('ID "[" expr "]" ASSIGN expr ";"')
     def statement(self, p):
-        return _L(ArrayAssignment(name=p.ID, index=p.expr0, value=p.expr1), p.lineno)
+        return _L(Assignment(target=ArrayLocation(name=p.ID, index=p.expr0), operator="=", value=p.expr1), p.lineno)
 
     @_('ID "[" expr "]" PLUS_ASSIGN expr ";"')
     def statement(self, p):
-        return _L(ArrayCompoundAssignment(name=p.ID, index=p.expr0, operator="+=", value=p.expr1), p.lineno)
+        return _L(Assignment(target=ArrayLocation(name=p.ID, index=p.expr0), operator="+=", value=p.expr1), p.lineno)
 
     @_('ID "[" expr "]" MINUS_ASSIGN expr ";"')
     def statement(self, p):
-        return _L(ArrayCompoundAssignment(name=p.ID, index=p.expr0, operator="-=", value=p.expr1), p.lineno)
+        return _L(Assignment(target=ArrayLocation(name=p.ID, index=p.expr0), operator="-=", value=p.expr1), p.lineno)
 
     @_('ID "[" expr "]" TIMES_ASSIGN expr ";"')
     def statement(self, p):
-        return _L(ArrayCompoundAssignment(name=p.ID, index=p.expr0, operator="*=", value=p.expr1), p.lineno)
+        return _L(Assignment(target=ArrayLocation(name=p.ID, index=p.expr0), operator="*=", value=p.expr1), p.lineno)
 
     @_('ID "[" expr "]" DIVIDE_ASSIGN expr ";"')
     def statement(self, p):
-        return _L(ArrayCompoundAssignment(name=p.ID, index=p.expr0, operator="/=", value=p.expr1), p.lineno)
+        return _L(Assignment(target=ArrayLocation(name=p.ID, index=p.expr0), operator="/=", value=p.expr1), p.lineno)
 
     @_('INCREMENT ID ";"')
     def statement(self, p):
@@ -358,7 +311,7 @@ class LizardParser(Parser):
 
     @_('ID ASSIGN expr')
     def for_init(self, p):
-        return _L(Assignment(name=p.ID, value=p.expr), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="=", value=p.expr), p.lineno)
 
     @_('')
     def for_init(self, p):
@@ -417,7 +370,7 @@ class LizardParser(Parser):
     # Expresiones de asignación e incremento para el bucle for
     @_('ID ASSIGN expr')
     def assignment_expr(self, p):
-        return _L(Assignment(name=p.ID, value=p.expr), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="=", value=p.expr), p.lineno)
 
     # Compound assignments eliminados - ya están definidos como statements con ;
 

@@ -1,0 +1,15 @@
+// TEST: Operadores de asignación compuesta (+=, -=, *=, /=, %)
+[BepInPlugin("TestMod", "Compound Operators Test", "1.0")]
+
+/* Test con operadores compuestos */
+
+int UpdateStats(int health, int mana) {
+    health += 25;
+    mana -= 10;
+    health *= 2;
+    mana /= 3;
+    
+    int result = health % mana;
+    
+    return result;
+}

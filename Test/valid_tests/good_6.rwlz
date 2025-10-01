@@ -1,0 +1,14 @@
+// TEST: Función con modificador <base> y constantes
+[BepInPlugin("TestMod", "Base Function Test", "1.0")]
+
+/* Test con modificador <base> */
+
+<base> int Initialize(int maxHealth) {
+    const int MIN_HEALTH = 10;
+    
+    if (maxHealth < MIN_HEALTH) {
+        return MIN_HEALTH;
+    }
+    
+    return maxHealth;
+}

@@ -1,0 +1,9 @@
+// ERROR: Declaración de array con coma extra al final
+[BepInPlugin("TestMod", "Invalid Array Declaration Test", "1.0")]
+
+/* Error: declaración de array inválida */
+
+int BadFunction() {
+    array int numbers = [1, 2, 3,];  // coma extra
+    return numbers[0];
+}

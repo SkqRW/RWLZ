@@ -1,0 +1,20 @@
+// TEST: Bucles for y while con operadores de incremento
+[BepInPlugin("TestMod", "Loops Test", "1.0")]
+
+/* Test con bucles for y while */
+
+int ProcessNumbers() {
+    int sum = 0;
+    
+    for (int i = 0; i < 10; i++) {
+        sum += i;
+    }
+    
+    int counter = 0;
+    while (counter < 5) {
+        print("Counter: " + counter);
+        counter++;
+    }
+    
+    return sum;
+}

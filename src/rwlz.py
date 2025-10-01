@@ -22,6 +22,9 @@ Opciones de formato:
 import argparse
 import ast
 import sys
+import os
+import subprocess
+import platform
 
 from rich import print
 from Lexer.lexer import LizardLexer
@@ -316,7 +319,32 @@ def generate_png(ast_root, filename="ast"):
         
         # Guardar como PNG
         dot.render(filename, format='png', cleanup=True)
-        print(f"✅ [green]PNG generado exitosamente: {filename}.png[/green]")
+        
+        png_file = f"{filename}.png"
+        print(f"✅ [green]PNG generado exitosamente: {png_file}[/green]")
+        
+        # Abrir el archivo PNG automáticamente
+        try:
+            # Obtener la ruta absoluta del archivo PNG
+            abs_png_path = os.path.abspath(png_file)
+            
+            # Verificar que el archivo existe antes de intentar abrirlo
+            if not os.path.exists(abs_png_path):
+                print(f"⚠️ [yellow]Advertencia: El archivo PNG no se encontró en: {abs_png_path}[/yellow]")
+                return
+            
+            if platform.system() == "Windows":
+                os.startfile(abs_png_path)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", abs_png_path])
+            else:  # Linux y otros Unix
+                subprocess.run(["xdg-open", abs_png_path])
+            
+            print(f"📖 [cyan]Abriendo {abs_png_path} con el visor predeterminado...[/cyan]")
+            
+        except Exception as open_error:
+            print(f"⚠️ [yellow]Advertencia: No se pudo abrir automáticamente el archivo PNG: {open_error}[/yellow]")
+            print(f"   [dim]Puedes abrirlo manualmente: {os.path.abspath(png_file) if os.path.exists(png_file) else png_file}[/dim]")
         
     except ImportError as e:
         if 'graphviz' in str(e):

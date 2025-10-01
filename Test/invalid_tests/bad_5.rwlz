@@ -1,0 +1,9 @@
+// ERROR: String literal sin cerrar - falta comilla de cierre
+[BepInPlugin("TestMod", "Unclosed String Test", "1.0")]
+
+/* Error: string sin cerrar */
+
+int BadFunction() {
+    print("This string is not closed);
+    return 0;
+}

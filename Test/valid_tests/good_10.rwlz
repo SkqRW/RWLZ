@@ -1,0 +1,38 @@
+// TEST: Programa complejo con múltiples funciones, bucles anidados y control de flujo
+[BepInPlugin("TestMod", "Complex Program Test", "1.0")]
+
+/* Test complejo combinando varias características */
+
+<base> int GameLoop(array int scores, int playerCount) {
+    const int MAX_SCORE = 1000;
+    int bestScore = 0;
+    
+    for (int i = 0; i < playerCount; ++i) {
+        if (scores[i] > bestScore) {
+            bestScore = scores[i];
+        }
+        
+        if (bestScore >= MAX_SCORE) {
+            print("Max score reached!");
+            break;
+        }
+    }
+    
+    return bestScore;
+}
+
+bool ValidatePlayer(int health, float energy) {
+    if (health <= 0) {
+        return false;
+    }
+    
+    while (energy > 0.0) {
+        energy -= 5.5;
+        
+        if (energy < 10.0) {
+            continue;
+        }
+    }
+    
+    return true;
+}

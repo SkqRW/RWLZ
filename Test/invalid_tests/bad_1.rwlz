@@ -1,0 +1,9 @@
+// ERROR: Falta punto y coma al final de declaración de variable
+[BepInPlugin("TestMod", "Missing Semicolon Test", "1.0")]
+
+/* Error: falta punto y coma */
+
+int BadFunction() {
+    int x = 5
+    return x;
+}

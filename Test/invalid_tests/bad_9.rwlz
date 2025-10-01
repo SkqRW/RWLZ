@@ -1,0 +1,8 @@
+// ERROR: Faltan paréntesis en definición de función
+[BepInPlugin("TestMod", "Missing Parentheses Test", "1.0")]
+
+/* Error: faltan paréntesis en función */
+
+int BadFunction {
+    return 42;
+}

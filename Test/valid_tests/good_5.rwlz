@@ -1,0 +1,14 @@
+// TEST: Operaciones aritméticas con números de punto flotante
+[BepInPlugin("TestMod", "Float Operations Test", "1.0")]
+
+/* Test con operaciones de punto flotante */
+
+float CalculateDamage(float baseDamage, float multiplier) {
+    float damage = baseDamage * multiplier;
+    
+    if (damage > 100.0) {
+        damage /= 2.0;
+    }
+    
+    return damage;
+}

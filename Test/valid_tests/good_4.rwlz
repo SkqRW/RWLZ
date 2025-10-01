@@ -1,0 +1,15 @@
+// TEST: Declaración y manipulación de arrays con índices
+[BepInPlugin("TestMod", "Arrays Test", "1.0")]
+
+/* Test con arrays */
+
+int ProcessArray() {
+    array int numbers = [1, 2, 3, 4, 5];
+    int total = 0;
+    
+    for (int i = 0; i < 5; i++) {
+        total += numbers[i];
+    }
+    
+    return total;
+}

@@ -1,0 +1,14 @@
+// TEST: Estructuras condicionales if/else con valores booleanos
+[BepInPlugin("TestMod", "Conditional Test", "1.0")]
+
+/* Test con condicionales */
+
+bool CheckHealth(int health) {
+    if (health > 50) {
+        print("Health is good");
+        return true;
+    } else {
+        print("Health is low");
+        return false;
+    }
+}

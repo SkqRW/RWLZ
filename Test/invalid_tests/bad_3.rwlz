@@ -1,0 +1,9 @@
+// ERROR: Nombre de variable inválido - no puede empezar con número
+[BepInPlugin("TestMod", "Invalid Variable Name Test", "1.0")]
+
+/* Error: nombre de variable inválido */
+
+int BadFunction() {
+    int 123invalid = 5;
+    return 123invalid;
+}

@@ -1,0 +1,9 @@
+// ERROR: Operadores de incremento duplicados - sintaxis inválida
+[BepInPlugin("TestMod", "Double Operators Test", "1.0")]
+
+/* Error: operadores duplicados */
+
+int BadFunction(int x) {
+    x ++ ++;  // doble incremento inválido
+    return x;
+}

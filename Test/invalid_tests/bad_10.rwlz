@@ -1,0 +1,11 @@
+// ERROR: Bucle for mal formado - falta punto y coma entre condiciones
+[BepInPlugin("TestMod", "Invalid For Loop Test", "1.0")]
+
+/* Error: bucle for mal formado */
+
+int BadFunction() {
+    for (int i = 0 i < 10; i++) {  // falta punto y coma
+        print("Number: " + i);
+    }
+    return 0;
+}

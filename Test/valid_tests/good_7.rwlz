@@ -1,0 +1,14 @@
+// TEST: Función con modificador <breed> y operadores lógicos
+[BepInPlugin("TestMod", "Breed Function Test", "1.0")]
+
+/* Test con modificador <breed> */
+
+<breed> bool SpawnCreature(int x, int y) {
+    print("Spawning creature at: " + x + ", " + y);
+    
+    if (x >= 0 && y >= 0) {
+        return true;
+    }
+    
+    return false;
+}

@@ -1,0 +1,14 @@
+// TEST: Operadores lógicos (&&, ||, !) y expresiones booleanas
+[BepInPlugin("TestMod", "Logical Operations Test", "1.0")]
+
+/* Test con operadores lógicos */
+
+bool CheckConditions(bool isAlive, bool hasEnergy, int level) {
+    if (isAlive && hasEnergy) {
+        if (level > 10 || level == 1) {
+            return !false;
+        }
+    }
+    
+    return true && false;
+}

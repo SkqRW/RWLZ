@@ -30,12 +30,11 @@ except ImportError:
 
 def _L(node, lineno):
     """
-    Función helper para asignar números de línea a los nodos del AST.
-    Útil para reportar errores precisos durante la compilación.
+    Helper to assign line numbers to AST nodes
     """
     if hasattr(node, 'lineno'):
         node.lineno = lineno
-        # print(f"[DEBUG] Asignando línea {lineno} a {type(node).__name__}")  # Comentado para salida más limpia
+        # print(f"[DEBUG] Asignando línea {lineno} a {type(node).__name__}")
     return node
 
 # =====================================================================
@@ -152,31 +151,22 @@ class Literal(Expression):
     value : Union[int, float, str, bool]
     type  : Optional[LiteralType] = None
 
-@dataclass
-class Type(Node):
-    name: str
-
 # =====================================================================
 # Program y Metadata
 # =====================================================================
 
 @dataclass
-class Program(Node):
+class Program(Statement):
     """ Main Node of the language """
     metadata: Optional['Metadata']
     functions: List['Function']
 
 @dataclass
-class Metadata(Node):
+class Metadata(Statement):
     """ Metadatos BepInPlugin """
     ID: str
     NAME: str
     VERSION: str
-
-# =====================================================================
-# Data Types
-# =====================================================================
-
 @dataclass
 class Type(Node):
     name: str
@@ -253,7 +243,6 @@ class VarDecl(Statement):
 
 @dataclass
 class ArrayDecl(Statement):
-    """Declaración de array: tipo nombre[tamaño] = {...};"""
     var_type: Type
     name: str
     size: Optional[Expression] = None
@@ -268,45 +257,30 @@ class ArrayDecl(Statement):
             return f"{const_str}{self.var_type} {self.name}{size_str} = [{vals}];"
         return f"{const_str}{self.var_type} {self.name}{size_str};"
 
+class Location(Expression):
+    pass
+
+@dataclass
+class VarLocation(Location):
+    name: str
+    def __str__(self):
+        return self.name
+
+@dataclass
+class ArrayLocation(Location):
+    name: str
+    index: Expression
+    def __str__(self):
+        return f"{self.name}[{self.index}]"
+
 @dataclass
 class Assignment(Statement):
-    """Asignación: nombre = valor;"""
-    name: str
-    value: Literal
-    
-    def __str__(self):
-        return f"{self.name} = {self.value};"
-
-@dataclass
-class CompoundAssignment(Statement):
-    """Asignación compuesta: nombre op= valor;"""
-    name: str
-    operator: str  # +=, -=, *=, /=
-    value: Literal
-    
-    def __str__(self):
-        return f"{self.name} {self.operator} {self.value};"
-
-@dataclass
-class ArrayAssignment(Statement):
-    """Asignación a array: nombre[índice] = valor;"""
-    name: str
-    index: Expression
+    target: Location
+    operator: str
     value: Expression
     
     def __str__(self):
-        return f"{self.name}[{self.index}] = {self.value};"
-
-@dataclass
-class ArrayCompoundAssignment(Statement):
-    """Asignación compuesta a array: nombre[índice] op= valor;"""
-    name: str
-    index: Expression
-    operator: str  # +=, -=, *=, /=
-    value: Expression
-    
-    def __str__(self):
-        return f"{self.name}[{self.index}] {self.operator} {self.value};"
+        return f"{self.target} {self.operator} {self.value};"
 
 @dataclass
 class IncrementStatement(Statement):
@@ -654,12 +628,7 @@ class PrettyPrinter(Visitor):
     
     def visit_Assignment(self, node: Assignment):
         return f"{node.name} = {self.visit(node.value)};"
-    
-    def visit_CompoundAssignment(self, node: CompoundAssignment):
-        return f"{node.name} {node.operator} {self.visit(node.value)};"
-    
-    def visit_ArrayAssignment(self, node: ArrayAssignment):
-        return f"{node.name}[{self.visit(node.index)}] = {self.visit(node.value)};"
+
     
     def visit_IncrementStatement(self, node: IncrementStatement):
         if node.is_prefix:

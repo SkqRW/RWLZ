@@ -1,0 +1,10 @@
+// ERROR: Llaves no balanceadas - falta llave de cierre
+[BepInPlugin("TestMod", "Unmatched Braces Test", "1.0")]
+
+/* Error: llaves no balanceadas */
+
+int BadFunction() {
+    if (true) {
+        print("Hello");
+    // Falta llave de cierre
+}
