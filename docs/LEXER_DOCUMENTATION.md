@@ -2,17 +2,18 @@
 
 ## Descripción General
 
-El **LizardLexer** es el analizador léxico del compilador para el lenguaje de programación **Lizard** con extensión `.rwlz`. Este lexer está diseñado específicamente para desarrollar para .NET, con características especiales para BepInEx plugins y sintaxis inspirada en C/C#.
+El **LizardLexer** es el analizador léxico del compilador para el lenguaje de programación **Lizard** con extensión `.rwlz`. Este lexer está diseñado específicamente para desarrollar para .NET, con características especiales para Unity/BepInEx plugins y sintaxis inspirada en C/C#.
 
 ## Características Principales
 
 - ✅ **Operaciones básicas completas** (aritméticas, lógicas, comparación)
 - ✅ **Manejo de arrays estilo C** (con operadores +=, -=, *=, /=, ++, --)
-- ✅ **Tipos de datos nativos** (int, float, bool, char, string)
+- ✅ **Tipos de datos nativos** (int, float, bool, char, string, void, auto)
 - ✅ **Estructuras de control** (if/else, for, while, break, continue)
 - ✅ **Funciones y variables automáticas**
-- ✅ **Sintaxis especial para mods .NET** (BepInPlugin, \<base>, \<breed>, \<prop>)
-- ✅ **Manejo robusto de errores**
+- ✅ **Declaraciones especializadas** (BREED, BASE, HOOK, PROP para mods)
+- ✅ **Sintaxis especial para mods .NET** (BepInPlugin, referencias especiales)
+- ✅ **Manejo de errores**
 
 ---
 
@@ -26,6 +27,7 @@ El **LizardLexer** es el analizador léxico del compilador para el lenguaje de p
 | `BASE` | `<base>` | Referencia a clase base |
 | `BREED` | `<breed>` | Referencia a breed/tipo |
 | `PROP` | `<prop>` | Referencia a propiedad |
+| `HOOK` | `<hook>` | Referencia a hook/gancho |
 | `PRINT` | `print` | Función de impresión |
 
 ### 2. Tipos de Datos
@@ -52,8 +54,7 @@ El **LizardLexer** es el analizador léxico del compilador para el lenguaje de p
 | `WHILE` | `while` | Bucle while |
 | `BREAK` | `break` | Romper bucle |
 | `CONTINUE` | `continue` | Continuar bucle |
-| `RETURN` | `return` | Retorno de función |
-| `FUNCTION` | `function` | Declaración de función |
+| `RETURN` | `return` | Retorno de función |¿
 
 ### 4. Literales Booleanos
 
@@ -147,229 +148,58 @@ Los siguientes caracteres se reconocen directamente como tokens:
 
 ---
 
-## Gramática Libre de Contexto (BNF)
+## Patrones de Reconocimiento
 
-La siguiente es la gramática formal del lenguaje Lizard en formato Backus-Naur Form (BNF):
+### Expresiones Regulares Utilizadas
 
-### Programa Principal
-```bnf
-<programa> ::= <plugin_declaration> <function_list>
-             | <function_list>
+El lexer utiliza las siguientes expresiones regulares para reconocer tokens:
 
-<plugin_declaration> ::= '[' 'BepInPlugin' '(' <string_literal> ',' <string_literal> ',' <string_literal> ')' ']'
+```python
+# Números flotantes
+FLOAT_LITERAL = r'([0-9]+\.[0-9]+([eE][+-]?[0-9]+)?)|([0-9]+[eE][+-]?[0-9]+)'
 
-<function_list> ::= <function_declaration> <function_list>
-                  | <function_declaration>
+# Números enteros
+INTEGER_LITERAL = r'0|[1-9][0-9]*'
+
+# Caracteres con escape
+CHAR_LITERAL = r"\'([\x20-\x7E]|\\([abefnrtv\\'\"]|0x[0-9a-fA-F]{2}))\'"
+
+# Cadenas con escape
+STRING_LITERAL = r'\"([\x20-\x7E]|\\([abefnrtv\\'\"]|0x[0-9a-fA-F]{2}))*\"'
+
+# Identificadores
+ID = r'[A-Za-z_][A-Za-z0-9_]*'
 ```
 
-### Declaraciones de Funciones
-```bnf
-<function_declaration> ::= 'function' <type> <identifier> '(' <parameter_list> ')' <block>
-                         | <type> <identifier> '(' <parameter_list> ')' <block>
+### Secuencias de Escape Soportadas
 
-<parameter_list> ::= <parameter> ',' <parameter_list>
-                   | <parameter>
-                   | ε
+| Secuencia | Descripción | Valor |
+|-----------|-------------|-------|
+| `\a` | Alerta (bell) | ASCII 7 |
+| `\b` | Backspace | ASCII 8 |
+| `\e` | Escape | ASCII 27 |
+| `\f` | Form feed | ASCII 12 |
+| `\n` | Nueva línea | ASCII 10 |
+| `\r` | Retorno de carro | ASCII 13 |
+| `\t` | Tabulación horizontal | ASCII 9 |
+| `\v` | Tabulación vertical | ASCII 11 |
+| `\\` | Barra invertida | ASCII 92 |
+| `\'` | Comilla simple | ASCII 39 |
+| `\"` | Comilla doble | ASCII 34 |
+| `\0xNN` | Carácter hexadecimal | Valor hex |
 
-<parameter> ::= <type> <identifier>
-              | 'const' <type> <identifier>
-```
+### Orden de Precedencia de Tokens
 
-### Tipos de Datos
-```bnf
-<type> ::= 'int'
-         | 'float' 
-         | 'bool'
-         | 'char'
-         | 'string'
-         | 'void'
-         | 'auto'
-         | 'array' <type>
+Para evitar conflictos, los tokens se definen en orden de especificidad:
 
-<type_modifier> ::= 'const'
-```
-
-### Bloques y Declaraciones
-```bnf
-<block> ::= '{' <statement_list> '}'
-
-<statement_list> ::= <statement> <statement_list>
-                   | ε
-
-<statement> ::= <declaration_statement>
-              | <assignment_statement>
-              | <expression_statement>
-              | <control_statement>
-              | <return_statement>
-              | <print_statement>
-              | <block>
-```
-
-### Declaraciones y Asignaciones
-```bnf
-<declaration_statement> ::= <type> <identifier> ';'
-                          | <type> <identifier> '=' <expression> ';'
-                          | 'const' <type> <identifier> '=' <expression> ';'
-                          | <type> <identifier> '[' <expression> ']' ';'
-                          | <type> <identifier> '=' <array_literal> ';'
-
-<assignment_statement> ::= <identifier> '=' <expression> ';'
-                         | <identifier> '+=' <expression> ';'
-                         | <identifier> '-=' <expression> ';'
-                         | <identifier> '*=' <expression> ';'
-                         | <identifier> '/=' <expression> ';'
-                         | <identifier> '[' <expression> ']' '=' <expression> ';'
-                         | <identifier> '++' ';'
-                         | '++' <identifier> ';'
-                         | <identifier> '--' ';'
-                         | '--' <identifier> ';'
-
-<expression_statement> ::= <expression> ';'
-```
-
-### Estructuras de Control
-```bnf
-<control_statement> ::= <if_statement>
-                      | <while_statement>
-                      | <for_statement>
-                      | <break_statement>
-                      | <continue_statement>
-
-<if_statement> ::= 'if' '(' <expression> ')' <statement>
-                 | 'if' '(' <expression> ')' <statement> 'else' <statement>
-
-<while_statement> ::= 'while' '(' <expression> ')' <statement>
-
-<for_statement> ::= 'for' '(' <for_init> ';' <expression> ';' <for_update> ')' <statement>
-
-<for_init> ::= <declaration_statement>
-             | <assignment_statement>
-             | ε
-
-<for_update> ::= <assignment_expression>
-               | <increment_expression>
-               | ε
-
-<break_statement> ::= 'break' ';'
-
-<continue_statement> ::= 'continue' ';'
-
-<return_statement> ::= 'return' <expression> ';'
-                     | 'return' ';'
-
-<print_statement> ::= 'print' '(' <expression> ')' ';'
-```
-
-### Expresiones
-```bnf
-<expression> ::= <logical_or_expression>
-
-<logical_or_expression> ::= <logical_and_expression>
-                          | <logical_or_expression> '||' <logical_and_expression>
-
-<logical_and_expression> ::= <equality_expression>
-                           | <logical_and_expression> '&&' <equality_expression>
-
-<equality_expression> ::= <relational_expression>
-                        | <equality_expression> '==' <relational_expression>
-                        | <equality_expression> '!=' <relational_expression>
-
-<relational_expression> ::= <additive_expression>
-                          | <relational_expression> '<' <additive_expression>
-                          | <relational_expression> '>' <additive_expression>
-                          | <relational_expression> '<=' <additive_expression>
-                          | <relational_expression> '>=' <additive_expression>
-
-<additive_expression> ::= <multiplicative_expression>
-                        | <additive_expression> '+' <multiplicative_expression>
-                        | <additive_expression> '-' <multiplicative_expression>
-
-<multiplicative_expression> ::= <unary_expression>
-                              | <multiplicative_expression> '*' <unary_expression>
-                              | <multiplicative_expression> '/' <unary_expression>
-                              | <multiplicative_expression> '%' <unary_expression>
-
-<unary_expression> ::= <postfix_expression>
-                     | '!' <unary_expression>
-                     | '-' <unary_expression>
-                     | '+' <unary_expression>
-                     | '++' <unary_expression>
-                     | '--' <unary_expression>
-
-<postfix_expression> ::= <primary_expression>
-                       | <postfix_expression> '[' <expression> ']'
-                       | <postfix_expression> '(' <argument_list> ')'
-                       | <postfix_expression> '++'
-                       | <postfix_expression> '--'
-
-<primary_expression> ::= <identifier>
-                       | <literal>
-                       | '(' <expression> ')'
-                       | <special_reference>
-
-<special_reference> ::= '<base>' '(' <expression> ')'
-                      | '<breed>' '(' <expression> ')'
-                      | '<prop>' '(' <expression> ')'
-```
-
-### Expresiones de Asignación e Incremento
-```bnf
-<assignment_expression> ::= <identifier> '=' <expression>
-                          | <identifier> '+=' <expression>
-                          | <identifier> '-=' <expression>
-                          | <identifier> '*=' <expression>
-                          | <identifier> '/=' <expression>
-
-<increment_expression> ::= <identifier> '++'
-                         | '++' <identifier>
-                         | <identifier> '--'
-                         | '--' <identifier>
-```
-
-### Literales y Arrays
-```bnf
-<literal> ::= <integer_literal>
-            | <float_literal>
-            | <string_literal>
-            | <char_literal>
-            | <boolean_literal>
-
-<boolean_literal> ::= 'true' | 'false'
-
-<array_literal> ::= '[' <expression_list> ']'
-                  | '[' ']'
-
-<expression_list> ::= <expression>
-                    | <expression> ',' <expression_list>
-
-<argument_list> ::= <expression>
-                  | <expression> ',' <argument_list>
-                  | ε
-```
-
-### Identificadores y Terminales
-```bnf
-<identifier> ::= [A-Za-z_][A-Za-z0-9_]*
-
-<integer_literal> ::= '0' | [1-9][0-9]*
-
-<float_literal> ::= [1-9][0-9]*'.'[0-9]+([eE][+-]?[0-9]+)?
-
-<string_literal> ::= '"' ([\x20-\x7E] | escape_sequence)* '"'
-
-<char_literal> ::= "'" ([\x20-\x7E] | escape_sequence) "'"
-
-<escape_sequence> ::= '\' ('a'|'b'|'e'|'f'|'n'|'r'|'t'|'v'|'\'|'"'|"'") 
-                    | '\0x'[0-9a-fA-F]{2}
-```
-
-### Notas sobre la Gramática
-
-1. **Precedencia de Operadores**: La gramática refleja la precedencia estándar de C/C#
-2. **Asociatividad**: Los operadores son asociativos por la izquierda excepto los de asignación
-3. **Ambigüedad**: Se evita mediante la estructura jerárquica de las expresiones
-4. **Extensibilidad**: Fácil agregar nuevas construcciones siguiendo el patrón
-5. **Compatibilidad**: Mantiene compatibilidad con sintaxis familiar de C/C#
+1. **Operadores compuestos** (`+=`, `-=`, `*=`, `/=`, `++`, `--`)
+2. **Operadores de comparación** (`==`, `!=`, `<=`, `>=`)
+3. **Operadores lógicos** (`&&`, `||`)
+4. **Operadores simples** (`+`, `-`, `*`, `/`, `%`, `=`, `<`, `>`, `!`)
+5. **Referencias especiales** (`<base>`, `<breed>`, `<prop>`, `<hook>`)
+6. **Palabras clave** (`int`, `float`, `if`, `while`, etc.)
+7. **Literales** (números, cadenas, caracteres)
+8. **Identificadores** (nombres de variables y funciones)
 
 ---
 
@@ -499,6 +329,7 @@ function float CalculateDistance(float x1, float y1, float x2, float y2) {
 
 ### Precedencia de Operadores
 El lexer maneja correctamente la precedencia reconociendo primero los operadores más largos:
+
 1. `++`, `--` (incremento/decremento)
 2. `+=`, `-=`, `*=`, `/=` (asignación compuesta)
 3. `==`, `!=`, `<=`, `>=` (comparación)
@@ -506,14 +337,26 @@ El lexer maneja correctamente la precedencia reconociendo primero los operadores
 5. `+`, `-`, `*`, `/`, `%` (aritméticos)
 
 ### Manejo de Espacios en Blanco
+
 - **Ignorados**: Espacios, tabulaciones, retornos de carro
 - **Contabilizados**: Saltos de línea (para reporte de errores)
 
+### Validación de Errores Mejorada
+
+El lexer actual incluye validación robusta para:
+
+- **Números flotantes inválidos**: Detecta patrones como `0.` sin dígitos después del punto
+- **Cadenas sin cerrar**: Identifica strings que no tienen comilla de cierre
+- **Caracteres sin cerrar**: Detecta literales de carácter malformados
+- **Reporte de líneas**: Mantiene seguimiento preciso del número de línea para errores
+
 ### Compatibilidad
+
 - ✅ Compatible con sintaxis C/C# básica
 - ✅ Extensiones especiales para desarrollo de mods .NET
 - ✅ Soporte completo para arrays y operaciones estilo C
 - ✅ Integración con BepInEx framework
+- ✅ Manejo robusto de errores con reportes detallados
 
 ---
 

@@ -3,7 +3,7 @@ from Utils.errors import error, get_error_count
 
 class LizardLexer(Lexer):
     tokens = {
-        BASE, BREED, PROP, 
+        BASE, BREED, PROP, HOOK,
         PRINT,
         ID, ARRAY, AUTO,
         INTEGER_LITERAL, FLOAT_LITERAL, STRING_LITERAL, CHAR_LITERAL,
@@ -26,9 +26,7 @@ class LizardLexer(Lexer):
 
     @_(r'\n+')
     def ignore_newlines(self, t):
-        """
-        Ignora saltos de línea y actualiza el contador de líneas.
-        """
+        """ Ignores newlines and updates line number count. """
         self.lineno += t.value.count('\n')
 
     # Tokens literales (símbolos que usamos tal cual)
@@ -83,6 +81,7 @@ class LizardLexer(Lexer):
         '<base>': 'BASE',
         '<breed>': 'BREED', 
         '<prop>': 'PROP',
+        '<hook>': 'HOOK',
         'print': 'PRINT',
         'auto': 'AUTO',
         'array': 'ARRAY',

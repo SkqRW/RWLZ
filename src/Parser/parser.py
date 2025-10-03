@@ -2,7 +2,7 @@ from sly import Parser
 from Lexer.lexer import LizardLexer
 from Utils.model import *
 from Utils.model import _L
-from Utils.errors import error
+from Utils.errors import error, syntax_error
 
 class LizardParser(Parser):
     # =====================================================================
@@ -11,7 +11,7 @@ class LizardParser(Parser):
     
     # Importar tokens del lexer
     tokens = LizardLexer.tokens
-    #debugfile = 'LizardParser.out'
+    debugfile = 'LizardParser.out'
 
     # Precedencias para expresiones (para evitar ambigüedad)
     # Orden: menor precedencia (arriba) a mayor precedencia (abajo)
@@ -83,6 +83,16 @@ class LizardParser(Parser):
             params=p.param_list_opt,
             body=p.block
         ), p.lineno)
+    
+    # NO IN USE STILL
+    @_('HOOK type ID "(" param_list_opt ")" block')  
+    def decl(self, p):
+        return _L(HookFunction(
+            name=p.ID,
+            return_type=p.type,
+            params=p.param_list_opt,
+            body=p.block
+        ), p.lineno)
 
     @_('type ID "(" param_list_opt ")" block')
     def decl(self, p):
@@ -132,7 +142,6 @@ class LizardParser(Parser):
     @_('STRING')
     @_('VOID')
     @_('AUTO')
-    @_('ID')
     def type(self, p):
         return _L(Type(name=p[0]), p.lineno)
 
@@ -160,7 +169,7 @@ class LizardParser(Parser):
         return [p.statement]
 
     # =====================================================================
-    # DECLARACIONES DE VARIABLES Y ARRAYS
+    # Var and Array Declarations, Assignments, and Function Calls
     # =====================================================================
     
     @_('type ID ASSIGN expr ";"')
@@ -229,19 +238,19 @@ class LizardParser(Parser):
 
     @_('INCREMENT ID ";"')
     def statement(self, p):
-        return _L(IncrementStatement(variable=p.ID, operator="++", is_prefix=True), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="++", is_prefix=True), p.lineno)
 
     @_('ID INCREMENT ";"')
     def statement(self, p):
-        return _L(IncrementStatement(variable=p.ID, operator="++", is_prefix=False), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="++", is_prefix=False), p.lineno)
 
     @_('DECREMENT ID ";"')
     def statement(self, p):
-        return _L(IncrementStatement(variable=p.ID, operator="--", is_prefix=True), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="--", is_prefix=True), p.lineno)
 
     @_('ID DECREMENT ";"')
     def statement(self, p):
-        return _L(IncrementStatement(variable=p.ID, operator="--", is_prefix=False), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="--", is_prefix=False), p.lineno)
 
     @_('function_call ";"')
     def statement(self, p):
@@ -337,7 +346,7 @@ class LizardParser(Parser):
     def for_update(self, p):
         return None
 
-    # Llamadas a funciones
+    # Calls to functions
     @_('ID "(" arg_list_opt ")"')
     def function_call(self, p):
         return _L(CallExpression(name=p.ID, arguments=p.arg_list_opt), p.lineno)
@@ -358,7 +367,7 @@ class LizardParser(Parser):
     def arg_list(self, p):
         return [p.expr]
 
-    # Lista de expresiones para arrays
+    # List of expressions (for array literals)
     @_('expr_list "," expr')
     def expr_list(self, p):
         return p.expr_list + [p.expr]
@@ -367,41 +376,30 @@ class LizardParser(Parser):
     def expr_list(self, p):
         return [p.expr]
 
-    # Expresiones de asignación e incremento para el bucle for
+    # Assignments and increments used in for loops
     @_('ID ASSIGN expr')
     def assignment_expr(self, p):
         return _L(Assignment(target=VarLocation(name=p.ID), operator="=", value=p.expr), p.lineno)
 
-    # Compound assignments eliminados - ya están definidos como statements con ;
-
     @_('INCREMENT ID')
     def increment_expr(self, p):
-        return _L(IncrementStatement(variable=p.ID, operator="++", is_prefix=True), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="++", is_prefix=True), p.lineno)
 
     @_('ID INCREMENT')
     def increment_expr(self, p):
-        return _L(IncrementStatement(variable=p.ID, operator="++", is_prefix=False), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="++", is_prefix=False), p.lineno)
 
     @_('DECREMENT ID')
     def increment_expr(self, p):
-        return _L(IncrementStatement(variable=p.ID, operator="--", is_prefix=True), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="--", is_prefix=True), p.lineno)
 
     @_('ID DECREMENT')
     def increment_expr(self, p):
-        return _L(IncrementStatement(variable=p.ID, operator="--", is_prefix=False), p.lineno)
+        return _L(Assignment(target=VarLocation(name=p.ID), operator="--", is_prefix=False), p.lineno)
 
     # ===============================================
-    # EXPRESSIONS (Expresiones)
+    # EXPRESSIONS(Expresiones)
     # ===============================================
-    """
-    Esta sección maneja todas las expresiones del lenguaje:
-    - Operaciones binarias (+, -, *, /, %, ==, !=, <, >, <=, >=)
-    - Operaciones unarias (-, !)
-    - Operaciones lógicas (&&, ||)
-    - Incremento y decremento (++, --)
-    - Acceso a arrays y propiedades
-    - Expresiones especiales (prop, base, breed)
-    """
 
     @_('expr PLUS expr')
     @_('expr MINUS expr')
@@ -469,7 +467,6 @@ class LizardParser(Parser):
 
     @_('function_call')
     def expr(self, p):
-        """Llamada a función como expresión"""
         return p.function_call
 
     # ===============================================
@@ -486,20 +483,16 @@ class LizardParser(Parser):
 
     @_('INTEGER_LITERAL')
     def expr(self, p):
-        """Literal entero"""
-        return _L(NumberLiteral(value=int(p.INTEGER_LITERAL)), p.lineno)
+        return _L(Integer(value=int(p.INTEGER_LITERAL)), p.lineno)
 
     @_('FLOAT_LITERAL')
     def expr(self, p):
-        return _L(NumberLiteral(value=float(p.FLOAT_LITERAL)), p.lineno)
+        return _L(Float(value=float(p.FLOAT_LITERAL)), p.lineno)
 
     @_('STRING')
-    def expr(self, p):
-        return _L(String(value=p.STRING.strip('"')), p.lineno) ## CHECK THIS
-
     @_('STRING_LITERAL')
     def expr(self, p):
-        return _L(String(value=p.STRING_LITERAL.strip('"')), p.lineno)
+        return _L(String(value=p[0].strip('"')), p.lineno)
 
     @_('CHAR_LITERAL')
     def expr(self, p):
@@ -543,22 +536,7 @@ class LizardParser(Parser):
         """Expresión breed() para operaciones de herencia"""
         return _L(BreedExpression(expression=p.expr), p.lineno)
 
-    # ===============================================
-    # ERROR HANDLING (Manejo de Errores)
-    # ===============================================
-    """
-    Esta sección maneja los errores de sintaxis y parsing:
-    - Detección de errores de sintaxis
-    - Reportes de errores con línea
-    - Inicialización del parser
-    """
 
-    def error(self, p):
-        """Manejo de errores de sintaxis durante el parsing"""
-        if p:
-            error(f"Error de sintaxis en el token '{p.value}' (línea {p.lineno})", p.lineno)
-        else:
-            error("Error de sintaxis: fin de archivo inesperado", 0)
         
     def __init__(self):
         """Inicialización del parser con contador de errores"""

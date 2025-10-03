@@ -4,7 +4,6 @@
 |   Archivo de prueba  |
 |                     */
 
-// Función principal con modificador <base>
 int Initialize(int maxHealth, float powerMultiplier) {
     // Declaraciones de variables
     const int MAX_CREATURES = 100;
@@ -34,7 +33,6 @@ int Initialize(int maxHealth, float powerMultiplier) {
     }
 }
 
-// Función con modificador <breed>
 int ProcessCreatures(array int creatures, int count) {
     int processed = 0;
     
@@ -51,7 +49,6 @@ int ProcessCreatures(array int creatures, int count) {
     return processed;
 }
 
-// Función normal con arrays y operadores
 float CalculateDamage(float baseDamage, bool isCritical) {
     float finalDamage = baseDamage;
     

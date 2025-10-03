@@ -1,5 +1,5 @@
 // ERROR: Faltan corchetes en declaración de metadata BepInPlugin
-BepInPlugin("TestMod", "Missing Brackets Test", "1.0")]
+BepInPlugin"TestMod", "Missing Brackets Test", "1.0"
 
 /* Error: faltan corchetes en metadata */
 

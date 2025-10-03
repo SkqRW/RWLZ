@@ -1,273 +1,418 @@
 #!/usr/bin/env python3
 """
-🦎 LIZARD TEST RUNNER
-==================
-
-Script para ejecutar todos los tests del compilador Lizard.
-Ejecuta tests válidos (que deben compilar exitosamente) y tests inválidos (que deben fallar).
-
-Uso:
-    python run_tests.py [--verbose] [--stop-on-error]
-
-Opciones:
-    --verbose        Muestra salida detallada de cada test
-    --stop-on-error  Detiene la ejecución al primer error
-    --help          Muestra esta ayuda
+Sistema de pruebas automatizado para el compilador Lizard
+Ejecuta todos los archivos de prueba (.rwlz) y muestra los resultados usando Rich
 """
 
 import os
 import sys
-import subprocess
-import argparse
+import re
+import traceback
 from pathlib import Path
-import time
+from typing import List, Dict, Tuple, Optional
+from io import StringIO
+import contextlib
 
-# Configuración de paths
-SCRIPT_DIR = Path(__file__).parent
-TEST_DIR = SCRIPT_DIR / "Test"
-VALID_TESTS_DIR = TEST_DIR / "valid_tests"
-INVALID_TESTS_DIR = TEST_DIR / "invalid_tests"
-SRC_DIR = SCRIPT_DIR / "src"
-COMPILER_SCRIPT = SRC_DIR / "rwlz.py"
+# Importar Rich para formateo de salida
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.layout import Layout
+from rich.text import Text
+from rich.live import Live
+from rich import box
+
+# Importar componentes del compilador
+sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+from Lexer.lexer import LizardLexer
+from Parser.parser import LizardParser
+from Utils.errors import reset_errors, get_error_count
+
+console = Console()
 
 class TestResult:
-    def __init__(self, test_file, expected_success, actual_success, output="", error="", execution_time=0.0):
-        self.test_file = test_file
-        self.expected_success = expected_success
-        self.actual_success = actual_success
-        self.output = output
-        self.error = error
-        self.execution_time = execution_time
-        self.passed = expected_success == actual_success
+    """Representa el resultado de una prueba individual"""
+    def __init__(self, filename: str, expected_type: str, expected_description: str = ""):
+        self.filename = filename
+        self.expected_type = expected_type  # "VALID" o "ERROR"
+        self.expected_description = expected_description
+        self.actual_result = None  # "SUCCESS", "ERROR", "EXCEPTION"
+        self.error_message = ""
+        self.error_type = ""  # "LEXER", "PARSER", "EXCEPTION"
+        self.ast_generated = False
+        self.exception_details = ""
 
-def run_compiler(test_file_path, verbose=False):
-    """Ejecuta el compilador en un archivo de test y retorna el resultado"""
-    start_time = time.time()
-    
-    try:
-        # Ejecutar el compilador con --scan para verificar que funciona
-        result = subprocess.run([
-            sys.executable, str(COMPILER_SCRIPT), "--scan", str(test_file_path)
-        ], capture_output=True, text=True, timeout=30)
-        
-        execution_time = time.time() - start_time
-        
-        # El compilador es exitoso si no hay errores (return code 0)
-        success = result.returncode == 0
-        
-        if verbose:
-            print(f"  Return code: {result.returncode}")
-            if result.stdout:
-                print(f"  Stdout: {result.stdout[:200]}...")
-            if result.stderr:
-                print(f"  Stderr: {result.stderr[:200]}...")
-        
-        return TestResult(
-            test_file=test_file_path.name,
-            expected_success=True,  # Se actualizará según el tipo de test
-            actual_success=success,
-            output=result.stdout,
-            error=result.stderr,
-            execution_time=execution_time
-        )
-        
-    except subprocess.TimeoutExpired:
-        execution_time = time.time() - start_time
-        return TestResult(
-            test_file=test_file_path.name,
-            expected_success=True,
-            actual_success=False,
-            output="",
-            error="Test timeout (30s)",
-            execution_time=execution_time
-        )
-    except Exception as e:
-        execution_time = time.time() - start_time
-        return TestResult(
-            test_file=test_file_path.name,
-            expected_success=True,
-            actual_success=False,
-            output="",
-            error=f"Exception: {str(e)}",
-            execution_time=execution_time
-        )
-
-def get_test_description(test_file_path):
-    """Extrae la descripción del test desde la primera línea del archivo"""
-    try:
-        with open(test_file_path, 'r', encoding='utf-8') as f:
-            first_line = f.readline().strip()
-            if first_line.startswith('//'):
-                return first_line[2:].strip()
-    except:
-        pass
-    return "Sin descripción"
-
-def run_tests(test_dir, expected_success, test_type_name, verbose=False, stop_on_error=False):
-    """Ejecuta todos los tests en un directorio"""
-    test_files = sorted([f for f in test_dir.glob("*.rwlz")])
-    
-    if not test_files:
-        print(f"⚠️  No se encontraron archivos .rwlz en {test_dir}")
-        return []
-    
-    results = []
-    total_files = len(test_files)
-    
-    print(f"Ejecutando {test_type_name} ({total_files} archivos)...")
-    
-    for i, test_file in enumerate(test_files, 1):
-        if verbose:
-            print(f"\n🧪 [{i}/{total_files}] Ejecutando: {test_file.name}")
-            description = get_test_description(test_file)
-            print(f"   Descripción: {description}")
-        else:
-            print(f"[{i}/{total_files}] {test_file.name}...", end=" ")
-        
-        result = run_compiler(test_file, verbose)
-        result.expected_success = expected_success
-        results.append(result)
-        
-        # Mostrar resultado
-        if verbose:
-            status = "✅ PASS" if result.passed else "❌ FAIL"
-            print(f"   {status} ({result.execution_time:.2f}s)")
-            
-            if not result.passed and result.error:
-                print(f"   Error: {result.error[:100]}...")
-        else:
-            status = "PASS" if result.passed else "FAIL"
-            print(f"{status} ({result.execution_time:.2f}s)")
-        
-        # Parar si hay error y se solicita stop-on-error
-        if stop_on_error and not result.passed:
-            print(f"\n❌ Deteniendo ejecución debido a error en: {test_file.name}")
-            break
-    
-    return results
-
-def print_results_table(valid_results, invalid_results):
-    """Imprime una tabla con los resultados de todos los tests"""
-    
-    valid_passed = sum(1 for r in valid_results if r.passed)
-    valid_total_time = sum(r.execution_time for r in valid_results)
-    
-    invalid_passed = sum(1 for r in invalid_results if r.passed)
-    invalid_total_time = sum(r.execution_time for r in invalid_results)
-    
-    total_tests = len(valid_results) + len(invalid_results)
-    total_passed = valid_passed + invalid_passed
-    total_time = valid_total_time + invalid_total_time
-    
-    print("\n" + "="*60)
-    print("📊 RESUMEN DE RESULTADOS DE TESTS")
-    print("="*60)
-    
-    print(f"Tests Válidos (good_*.rwlz):")
-    print(f"  Total: {len(valid_results)} | Exitosos: {valid_passed} | Fallidos: {len(valid_results) - valid_passed} | Tiempo: {valid_total_time:.2f}s")
-    
-    print(f"\nTests Inválidos (bad_*.rwlz):")  
-    print(f"  Total: {len(invalid_results)} | Exitosos: {invalid_passed} | Fallidos: {len(invalid_results) - invalid_passed} | Tiempo: {invalid_total_time:.2f}s")
-    
-    print(f"\nTOTAL:")
-    print(f"  Total: {total_tests} | Exitosos: {total_passed} | Fallidos: {total_tests - total_passed} | Tiempo: {total_time:.2f}s")
-    
-    # Mostrar tests fallidos
-    failed_tests = [r for r in (valid_results + invalid_results) if not r.passed]
-    
-    if failed_tests:
-        print("\n❌ TESTS FALLIDOS:")
-        print("-" * 60)
-        for result in failed_tests:
-            expected = "Éxito" if result.expected_success else "Fallo"
-            actual = "Éxito" if result.actual_success else "Fallo" 
-            error_msg = result.error[:80] + "..." if len(result.error) > 80 else result.error
-            
-            print(f"• {result.test_file}")
-            print(f"  Esperado: {expected} | Obtenido: {actual}")
-            if error_msg:
-                print(f"  Error: {error_msg}")
-            print()
-    else:
-        print("\n🎉 ¡TODOS LOS TESTS PASARON EXITOSAMENTE!")
-
-def check_prerequisites():
-    """Verifica que todos los archivos necesarios existan"""
-    missing_files = []
-    
-    if not COMPILER_SCRIPT.exists():
-        missing_files.append(str(COMPILER_SCRIPT))
-    
-    if not VALID_TESTS_DIR.exists():
-        missing_files.append(str(VALID_TESTS_DIR))
-        
-    if not INVALID_TESTS_DIR.exists():
-        missing_files.append(str(INVALID_TESTS_DIR))
-    
-    if missing_files:
-        print("❌ Archivos faltantes:")
-        for file in missing_files:
-            print(f"   • {file}")
+    @property
+    def passed(self) -> bool:
+        """Determina si la prueba pasó según el resultado esperado"""
+        if self.expected_type == "VALID":
+            return self.actual_result == "SUCCESS"
+        elif self.expected_type == "ERROR":
+            return self.actual_result in ["ERROR", "EXCEPTION"]
         return False
+
+    @property
+    def status_emoji(self) -> str:
+        """Devuelve un emoji representando el estado de la prueba"""
+        if self.passed:
+            return "✅"
+        else:
+            return "❌"
+
+    @property
+    def status_color(self) -> str:
+        """Devuelve el color para mostrar el resultado"""
+        if self.passed:
+            return "green"
+        else:
+            return "red"
+
+class TestRunner:
+    """Ejecutor de pruebas principal"""
     
-    return True
+    def __init__(self, test_dir: str = "Test"):
+        self.test_dir = Path(test_dir)
+        self.valid_tests_dir = self.test_dir / "valid_tests"
+        self.invalid_tests_dir = self.test_dir / "invalid_tests"
+        self.results: List[TestResult] = []
+        
+    def extract_test_info(self, file_path: Path) -> Tuple[str, str]:
+        """Extrae información del TEST o ERROR de los comentarios del archivo"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Buscar comentarios TEST: o ERROR:
+            test_match = re.search(r'//\s*TEST:\s*(.+)', content, re.IGNORECASE)
+            error_match = re.search(r'//\s*ERROR:\s*(.+)', content, re.IGNORECASE)
+            
+            if test_match:
+                return "VALID", test_match.group(1).strip()
+            elif error_match:
+                return "ERROR", error_match.group(1).strip()
+            else:
+                # Inferir del nombre del directorio
+                if "valid" in str(file_path):
+                    return "VALID", "Prueba válida sin descripción específica"
+                else:
+                    return "ERROR", "Prueba inválida sin descripción específica"
+                    
+        except Exception as e:
+            console.print(f"[yellow]Advertencia: No se pudo leer {file_path}: {e}[/yellow]")
+            return "UNKNOWN", str(e)
+
+    def capture_compiler_output(self):
+        """Captura la salida del compilador (stdout y stderr)"""
+        return StringIO(), StringIO()
+    
+    def run_single_test(self, file_path: Path) -> TestResult:
+        """Ejecuta una prueba individual"""
+        expected_type, description = self.extract_test_info(file_path)
+        result = TestResult(file_path.name, expected_type, description)
+        
+        # Capturar salida de errores
+        captured_output = StringIO()
+        captured_errors = StringIO()
+        
+        try:
+            # Leer el archivo fuente
+            with open(file_path, 'r', encoding='utf-8') as f:
+                source = f.read()
+            
+            # Reiniciar contador de errores
+            reset_errors()
+            
+            # Capturar salida de errores para obtener mensajes específicos
+            with contextlib.redirect_stdout(captured_output), contextlib.redirect_stderr(captured_errors):
+                # Fase 1: Análisis léxico
+                lexer = LizardLexer()
+                try:
+                    tokens = list(lexer.tokenize(source))
+                except Exception as lex_error:
+                    result.actual_result = "ERROR"
+                    result.error_type = "LEXER"
+                    result.error_message = f"Error léxico: {str(lex_error)}"
+                    return result
+                
+                # Verificar errores del lexer
+                lexer_errors = captured_errors.getvalue()
+                if get_error_count() > 0 or lexer_errors:
+                    result.actual_result = "ERROR"
+                    result.error_type = "LEXER"
+                    if lexer_errors:
+                        # Extraer mensaje específico del error léxico
+                        error_lines = lexer_errors.strip().split('\n')
+                        specific_error = error_lines[-1] if error_lines else "Error léxico no especificado"
+                        result.error_message = f"Error léxico: {specific_error}"
+                    else:
+                        result.error_message = f"Error léxico detectado ({get_error_count()} errores)"
+                    return result
+                
+                # Fase 2: Análisis sintáctico
+                parser = LizardParser()
+                reset_errors()  # Reiniciar para el parser
+                captured_errors.truncate(0)  # Limpiar buffer de errores
+                captured_errors.seek(0)
+                
+                try:
+                    ast = parser.parse(lexer.tokenize(source))
+                except Exception as parse_error:
+                    result.actual_result = "ERROR"
+                    result.error_type = "PARSER"
+                    result.error_message = f"Error sintáctico: {str(parse_error)}"
+                    return result
+                
+                # Verificar resultado del parsing
+                parser_errors = captured_errors.getvalue()
+                if ast is None or get_error_count() > 0 or parser_errors:
+                    result.actual_result = "ERROR"
+                    result.error_type = "PARSER"
+                    if parser_errors:
+                        # Extraer mensaje específico del error sintáctico
+                        error_lines = parser_errors.strip().split('\n')
+                        # Buscar líneas que contengan información de error útil
+                        specific_errors = []
+                        for line in error_lines:
+                            if 'syntax error' in line.lower() or 'parse error' in line.lower():
+                                specific_errors.append(line.strip())
+                        
+                        if specific_errors:
+                            result.error_message = f"Error sintáctico: {specific_errors[-1]}"
+                        else:
+                            result.error_message = "Error sintáctico: estructura inválida"
+                    else:
+                        result.error_message = f"Error sintáctico detectado ({get_error_count()} errores)"
+                else:
+                    result.actual_result = "SUCCESS"
+                    result.ast_generated = True
+                    result.error_message = "Compilación exitosa"
+                
+        except Exception as e:
+            result.actual_result = "EXCEPTION"
+            result.error_type = "EXCEPTION"
+            result.error_message = f"Excepción: {str(e)}"
+            result.exception_details = traceback.format_exc()
+            
+        return result
+
+    def collect_test_files(self) -> List[Path]:
+        """Recolecta todos los archivos de prueba .rwlz"""
+        test_files = []
+        
+        # Archivos válidos
+        if self.valid_tests_dir.exists():
+            test_files.extend(self.valid_tests_dir.glob("*.rwlz"))
+            
+        # Archivos inválidos
+        if self.invalid_tests_dir.exists():
+            test_files.extend(self.invalid_tests_dir.glob("*.rwlz"))
+            
+        return sorted(test_files)
+
+    def run_all_tests(self) -> None:
+        """Ejecuta todas las pruebas con barra de progreso"""
+        test_files = self.collect_test_files()
+        
+        if not test_files:
+            console.print("[red]❌ No se encontraron archivos de prueba (.rwlz)[/red]")
+            return
+            
+        console.print(f"[cyan]🔍 Encontrados {len(test_files)} archivos de prueba[/cyan]")
+        console.print()
+        
+        # Ejecutar pruebas con barra de progreso
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console
+        ) as progress:
+            
+            task = progress.add_task("[green]Ejecutando pruebas...", total=len(test_files))
+            
+            for test_file in test_files:
+                progress.update(task, description=f"[green]Probando {test_file.name}...")
+                result = self.run_single_test(test_file)
+                self.results.append(result)
+                progress.advance(task)
+
+    def generate_summary_table(self) -> Table:
+        """Genera tabla de resumen de resultados"""
+        table = Table(title="📊 Resumen de Pruebas", box=box.ROUNDED)
+        table.add_column("Métrica", style="cyan", width=20)
+        table.add_column("Valor", style="white", width=15)
+        table.add_column("Detalle", style="dim", width=40)
+        
+        total_tests = len(self.results)
+        passed_tests = sum(1 for r in self.results if r.passed)
+        failed_tests = total_tests - passed_tests
+        
+        valid_tests = [r for r in self.results if r.expected_type == "VALID"]
+        invalid_tests = [r for r in self.results if r.expected_type == "ERROR"]
+        
+        valid_passed = sum(1 for r in valid_tests if r.passed)
+        invalid_passed = sum(1 for r in invalid_tests if r.passed)
+        
+        success_rate = (passed_tests / total_tests * 100) if total_tests > 0 else 0
+        
+        table.add_row("Total de Pruebas", str(total_tests), f"Archivos .rwlz procesados")
+        table.add_row("✅ Pasaron", f"[green]{passed_tests}[/green]", f"Comportamiento esperado")
+        table.add_row("❌ Fallaron", f"[red]{failed_tests}[/red]", f"Comportamiento inesperado")
+        table.add_row("📊 Tasa de Éxito", f"[{'green' if success_rate >= 80 else 'yellow' if success_rate >= 60 else 'red'}]{success_rate:.1f}%[/]", "Porcentaje de pruebas exitosas")
+        table.add_row("", "", "")
+        table.add_row("🟢 Pruebas Válidas", f"{len(valid_tests)}", f"✅ {valid_passed} / ❌ {len(valid_tests) - valid_passed}")
+        table.add_row("🔴 Pruebas Inválidas", f"{len(invalid_tests)}", f"✅ {invalid_passed} / ❌ {len(invalid_tests) - invalid_passed}")
+        
+        return table
+
+    def generate_detailed_table(self, test_type: str) -> Table:
+        """Genera tabla detallada para un tipo específico de pruebas"""
+        if test_type == "VALID":
+            filtered_results = [r for r in self.results if r.expected_type == "VALID"]
+            title = "🟢 Pruebas Válidas - Resultados Detallados"
+            expected_col = "Funcionalidad Esperada"
+        else:
+            filtered_results = [r for r in self.results if r.expected_type == "ERROR"]
+            title = "🔴 Pruebas Inválidas - Resultados Detallados"
+            expected_col = "Error Esperado"
+            
+        table = Table(title=title, box=box.ROUNDED)
+        table.add_column("Estado", justify="center", width=6)
+        table.add_column("Archivo", style="cyan", width=18)
+        table.add_column(expected_col, style="dim", width=45)
+        table.add_column("Resultado", width=30)
+        
+        for result in sorted(filtered_results, key=lambda x: (not x.passed, x.filename)):
+            status = result.status_emoji
+            filename = result.filename
+            expected = result.expected_description[:32] + "..." if len(result.expected_description) > 35 else result.expected_description
+            
+            # Formatear resultado actual con tipo de error
+            if result.actual_result == "SUCCESS":
+                actual = f"[green]✓ Compilado exitosamente[/green]"
+            elif result.actual_result == "ERROR":
+                if result.error_type == "LEXER":
+                    actual = f"[yellow]⚠ Error Léxico[/yellow]"
+                elif result.error_type == "PARSER":
+                    actual = f"[orange3]⚠ Error Sintáctico[/orange3]"
+                else:
+                    actual = f"[yellow]⚠ Error Detectado[/yellow]"
+            elif result.actual_result == "EXCEPTION":
+                actual = f"[red]💥 Excepción del Sistema[/red]"
+            else:
+                actual = f"[dim]? Estado Desconocido[/dim]"
+            
+            # Color de fila según el resultado
+            if result.passed:
+                table.add_row(status, filename, expected, actual)
+            else:
+                table.add_row(status, f"[red]{filename}[/red]", expected, actual)
+        
+        return table
+
+    def generate_error_details_table(self) -> Optional[Table]:
+        """Genera tabla con detalles de errores para pruebas fallidas"""
+        failed_tests = [r for r in self.results if not r.passed]
+        
+        if not failed_tests:
+            return None
+            
+        table = Table(title="🔍 Detalles de Pruebas Fallidas", box=box.ROUNDED)
+        table.add_column("Archivo", style="red", width=18)
+        table.add_column("Esperado", style="cyan", width=12)
+        table.add_column("Obtenido", style="yellow", width=15)
+        table.add_column("Tipo Error", style="magenta", width=12)
+        table.add_column("Descripción del Error", style="dim", width=45)
+        
+        for result in failed_tests:
+            expected = "✓ Éxito" if result.expected_type == "VALID" else "❌ Error"
+            
+            if result.actual_result == "SUCCESS":
+                obtained = "✓ Éxito"
+            elif result.actual_result == "ERROR":
+                obtained = "❌ Error"
+            elif result.actual_result == "EXCEPTION":
+                obtained = "💥 Excepción"
+            else:
+                obtained = "? Desconocido"
+            
+            error_type = result.error_type if result.error_type else "N/A"
+            error_msg = result.error_message[:42] + "..." if len(result.error_message) > 45 else result.error_message
+            
+            table.add_row(result.filename, expected, obtained, error_type, error_msg)
+        
+        return table
+
+    def print_results(self) -> None:
+        """Imprime todos los resultados formateados"""
+        console.clear()
+        
+        # Título principal
+        title_text = Text("🦎 LIZARD COMPILER - SISTEMA DE PRUEBAS", style="bold magenta")
+        console.print(Panel(title_text, box=box.DOUBLE, padding=(1, 2)))
+        console.print()
+        
+        # Resumen general
+        console.print(self.generate_summary_table())
+        console.print()
+        
+        # Tablas detalladas
+        console.print(self.generate_detailed_table("VALID"))
+        console.print()
+        
+        console.print(self.generate_detailed_table("ERROR"))
+        console.print()
+        
+        # Detalles de errores si existen
+        error_table = self.generate_error_details_table()
+        if error_table:
+            console.print(error_table)
+            console.print()
+        
+        # Mensaje final
+        total_tests = len(self.results)
+        passed_tests = sum(1 for r in self.results if r.passed)
+        success_rate = (passed_tests / total_tests * 100) if total_tests > 0 else 0
+        
+        if success_rate == 100:
+            final_msg = Text("🎉 ¡TODAS LAS PRUEBAS PASARON! 🎉", style="bold green")
+        elif success_rate >= 80:
+            final_msg = Text(f"✨ {success_rate:.1f}% de pruebas exitosas - ¡Buen trabajo!", style="bold yellow")
+        else:
+            final_msg = Text(f"⚠️ {success_rate:.1f}% de pruebas exitosas - Necesita atención", style="bold red")
+            
+        console.print(Panel(final_msg, box=box.ROUNDED, padding=(1, 2)))
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="🦎 Lizard Test Runner - Ejecuta todos los tests del compilador"
-    )
-    parser.add_argument(
-        "--verbose", "-v", 
-        action="store_true", 
-        help="Muestra salida detallada de cada test"
-    )
-    parser.add_argument(
-        "--stop-on-error", "-s",
-        action="store_true",
-        help="Detiene la ejecución al primer error"
-    )
+    """Función principal"""
+    # Cambiar al directorio del script si no estamos allí
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(script_dir)
     
-    args = parser.parse_args()
-    
-    print("🦎 LIZARD COMPILER TEST RUNNER")
-    print("=" * 50)
-    
-    # Verificar prerrequisitos
-    if not check_prerequisites():
+    # Verificar que estamos en el directorio correcto
+    if not os.path.exists("Test"):
+        console.print("[red]❌ Error: No se encontró el directorio 'Test'[/red]")
+        console.print("[dim]Asegúrate de que el directorio Test existe en la raíz del proyecto[/dim]")
         sys.exit(1)
     
-    # Ejecutar tests válidos (deben compilar sin errores)
-    print("\n📁 EJECUTANDO TESTS VÁLIDOS...")
-    valid_results = run_tests(
-        VALID_TESTS_DIR, 
-        expected_success=True, 
-        test_type_name="tests válidos",
-        verbose=args.verbose,
-        stop_on_error=args.stop_on_error
-    )
+    # Crear y ejecutar runner de pruebas
+    runner = TestRunner()
     
-    # Ejecutar tests inválidos (deben fallar al compilar)
-    print("\n📁 EJECUTANDO TESTS INVÁLIDOS...")
-    invalid_results = run_tests(
-        INVALID_TESTS_DIR, 
-        expected_success=False, 
-        test_type_name="tests inválidos",
-        verbose=args.verbose,
-        stop_on_error=args.stop_on_error
-    )
-    
-    # Mostrar resultados
-    print_results_table(valid_results, invalid_results)
-    
-    # Determinar código de salida
-    total_tests = len(valid_results) + len(invalid_results)
-    passed_tests = sum(1 for r in (valid_results + invalid_results) if r.passed)
-    
-    if passed_tests == total_tests:
-        print("\n🎉 ¡TODOS LOS TESTS PASARON!")
-        sys.exit(0)
-    else:
-        print(f"\n💥 {total_tests - passed_tests} TEST(S) FALLARON")
+    try:
+        console.print("[bold cyan]🦎 Sistema de Pruebas del Compilador Lizard[/bold cyan]")
+        console.print()
+        
+        runner.run_all_tests()
+        runner.print_results()
+        
+    except KeyboardInterrupt:
+        console.print("\n[yellow]⚠️ Pruebas interrumpidas por el usuario[/yellow]")
+        sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]❌ Error inesperado: {e}[/red]")
+        traceback.print_exc()
         sys.exit(1)
 
 if __name__ == "__main__":

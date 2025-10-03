@@ -10,6 +10,8 @@ int UpdateStats(int health, int mana) {
     mana /= 3;
     
     int result = health % mana;
+    result++;
+    mana--;
     
     return result;
 }

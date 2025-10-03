@@ -3,7 +3,7 @@
 ## Tabla de Contenidos
 - [Introducción](#introducción)
 - [Arquitectura del Parser](#arquitectura-del-parser)
-- [Gramática BNF](#gramática-bnf)
+- [Gramática EBNF](#gramática-ebnf)
 - [Precedencia de Operadores](#precedencia-de-operadores)
 - [Tipos de Nodos AST](#tipos-de-nodos-ast)
 - [Características Especiales](#características-especiales)
@@ -57,124 +57,178 @@ from Utils.errors import error      # Sistema de errores
 
 ---
 
-## Gramática BNF
+## Gramática EBNF
+
+La siguiente es la gramática formal del lenguaje Lizard en formato Extended Backus-Naur Form (EBNF):
 
 ### Programa Principal
-```bnf
-program ::= metadata_decl function_list
-         |  function_list
+```ebnf
+program ::= declList 
+          | metadataDecl declList
 
-metadata_decl ::= "[" BEPINPLUGIN "(" STRING "," STRING "," STRING ")" "]"
+metadataDecl ::= '[' 'BEPINPLUGIN' '(' stringLiteral ',' stringLiteral ',' stringLiteral ')' ']'
 
-function_list ::= function_list function_def
-               |  function_def
+declList ::= decl 
+           | decl declList
 ```
 
-### Funciones
-```bnf
-function_def ::= BASE type ID "(" param_list_opt ")" block
-              |  BREED type ID "(" param_list_opt ")" block  
-              |  type ID "(" param_list_opt ")" block
-              |  ID "(" param_list_opt ")" block
+### Declaraciones de Funciones
+```ebnf
+decl ::= type id '(' paramListOpt ')' block
+       | 'BREED' type id '(' paramListOpt ')' block
+       | 'BASE'  type id '(' paramListOpt ')' block
+       | 'HOOK'  type id '(' paramListOpt ')' block
+       | 'PROP'  type id '(' paramListOpt ')' block
 
-param_list_opt ::= param_list | ε
-param_list ::= param_list "," param | param
-param ::= type ID | CONST type ID
+paramListOpt ::= () 
+               | paramList
+
+paramList ::= param 
+            | param ',' paramList
+
+param ::= 'CONST' type id
+        | type id
 ```
 
-### Tipos
-```bnf
-type ::= INT | FLOAT | BOOL | CHAR | STRING | VOID
-      |  ARRAY type
-
-block ::= "{" statement_list "}"
-statement_list ::= statement_list statement | statement
+### Tipos de Datos
+```ebnf
+type ::= 'ARRAY' type
+       | 'AUTO'
+       | 'VOID'
+       | 'STRING'
+       | 'CHAR'
+       | 'BOOL'
+       | 'FLOAT'
+       | 'INT'
 ```
 
-### Statements
-```bnf
-statement ::= declaration ";"
-           |  assignment ";"
-           |  function_call ";"
-           |  if_stmt
-           |  while_stmt
-           |  for_stmt
-           |  RETURN expr ";"
-           |  RETURN ";"
-           |  BREAK ";"
-           |  CONTINUE ";"
-           |  PRINT "(" expr ")" ";"
+### Bloques y Declaraciones
+```ebnf
+block ::= '{' statementList '}'
 
-declaration ::= type ID ASSIGN expr ";"
-             |  type ID ";"
-             |  CONST type ID ASSIGN expr ";"
+statementList ::= statement 
+                | statementList statement
 ```
 
-### Control de Flujo
-```bnf
-if_stmt ::= IF "(" expr ")" block
-         |  IF "(" expr ")" block ELSE block
+### Declaraciones (Statements)
+```ebnf
+statement ::= 'PRINT' '(' expr ')' ';'
+            | 'RETURN' ';'
+            | 'RETURN' expr ';'
+            | 'CONTINUE' ';'
+            | 'BREAK' ';'
+            | 'FOR' '(' forInit ';' forCondition ';' forUpdate ')' block
+            | 'WHILE' '(' expr ')' block
+            | 'IF' '(' expr ')' block
+            | 'IF' '(' expr ')' block 'ELSE' block
+            | functionCall ';'
+            | id 'decrement' ';'
+            | 'decrement' id ';'
+            | id 'increment' ';'
+            | 'increment' id ';'
+            | id '[' expr ']' 'divide_assign' expr ';'
+            | id '[' expr ']' 'times_assign' expr ';'
+            | id '[' expr ']' 'minus_assign' expr ';'
+            | id '[' expr ']' 'plus_assign' expr ';'
+            | id '[' expr ']' 'assign' expr ';'
+            | id 'divide_assign' expr ';'
+            | id 'times_assign' expr ';'
+            | id 'minus_assign' expr ';'
+            | id 'plus_assign' expr ';'
+            | id 'assign' expr ';'
+            | type id '[' expr ']' 'assign' '[' exprList ']' ';'
+            | type id '[]' 'assign' '[' exprList ']' ';'
+            | type id '[' expr ']' ';'
+            | 'CONST' type id 'assign' expr ';'
+            | type id ';'
+            | type id 'assign' expr ';'
+```
 
-while_stmt ::= WHILE "(" expr ")" block
+### Estructuras de Control (For Loop)
+```ebnf
+forInit ::= () 
+          | id 'assign' expr
+          | type id 'assign' expr
 
-for_stmt ::= FOR "(" for_init ";" for_condition ";" for_update ")" block
+forCondition ::= () 
+               | expr
 
-for_init ::= type ID ASSIGN expr | ID ASSIGN expr | ε
-for_condition ::= expr | ε  
-for_update ::= assignment_expr | increment_expr | ε
+forUpdate ::= () 
+            | incrementExpr
+            | assignmentExpr
+```
+
+### Llamadas a Funciones
+```ebnf
+functionCall ::= id '(' argListOpt ')'
+
+argListOpt ::= () 
+             | argList
+
+argList ::= expr 
+          | argList ',' expr
+```
+
+### Listas de Expresiones
+```ebnf
+exprList ::= expr 
+           | exprList ',' expr
+
+assignmentExpr ::= id 'assign' expr
+
+incrementExpr ::= id 'decrement'
+                | 'decrement' id
+                | id 'increment'
+                | 'increment' id
 ```
 
 ### Expresiones
-```bnf
-expr ::= expr PLUS expr
-      |  expr MINUS expr
-      |  expr TIMES expr
-      |  expr DIVIDE expr
-      |  expr MODULO expr
-      |  expr EQ expr
-      |  expr NEQ expr
-      |  expr LT expr
-      |  expr LE expr
-      |  expr GT expr
-      |  expr GE expr
-      |  expr AND expr
-      |  expr OR expr
-      |  NOT expr
-      |  MINUS expr %prec UMINUS
-      |  INCREMENT ID
-      |  ID INCREMENT
-      |  DECREMENT ID
-      |  ID DECREMENT
-      |  ID "[" expr "]"
-      |  "[" expr_list "]"
-      |  "[" "]"
-      |  "(" expr ")"
-      |  function_call
-      |  INTEGER_LITERAL
-      |  FLOAT_LITERAL
-      |  STRING_LITERAL
-      |  CHAR_LITERAL
-      |  TRUE
-      |  FALSE
-      |  ID
-      |  PROP "(" expr ")"
-      |  BASE "(" expr ")"
-      |  BREED "(" expr ")"
+```ebnf
+expr ::= 'BREED' '(' expr ')'
+       | 'BASE' '(' expr ')'
+       | 'PROP' '(' expr ')'
+       | id
+       | 'FALSE'
+       | 'TRUE'
+       | charLiteral
+       | stringLiteral
+       | 'STRING'
+       | floatLiteral
+       | integerLiteral
+       | functionCall
+       | '(' expr ')'
+       | '[]'
+       | '[' exprList ']'
+       | id '[' expr ']'
+       | incrementExpr
+       | '+' expr
+       | '-' expr
+       | 'NOT' expr
+       | expr 'OR' expr
+       | expr 'AND' expr
+       | expr 'GE' expr
+       | expr 'GT' expr
+       | expr 'LE' expr
+       | expr 'LT' expr
+       | expr 'NEQ' expr
+       | expr 'EQ' expr
+       | expr 'MODULO' expr
+       | expr 'DIVIDE' expr
+       | expr 'TIMES' expr
+       | expr 'MINUS' expr
+       | expr 'PLUS' expr
 ```
 
-### Asignaciones
-```bnf
-assignment ::= ID ASSIGN expr
-            |  ID PLUS_ASSIGN expr
-            |  ID MINUS_ASSIGN expr
-            |  ID TIMES_ASSIGN expr
-            |  ID DIVIDE_ASSIGN expr
-            |  ID "[" expr "]" ASSIGN expr
-            |  ID "[" expr "]" PLUS_ASSIGN expr
-            |  ID "[" expr "]" MINUS_ASSIGN expr
-            |  ID "[" expr "]" TIMES_ASSIGN expr
-            |  ID "[" expr "]" DIVIDE_ASSIGN expr
-```
+### Notas sobre la Gramática EBNF
+
+1. **Formato EBNF**: Utiliza Extended Backus-Naur Form para una sintaxis más clara y concisa
+2. **Declaraciones Especializadas**: Soporta declaraciones con prefijos `BREED`, `BASE`, `HOOK`, y `PROP` para desarrollo de mods
+3. **Metadata BepInPlugin**: Incluye soporte explícito para atributos de plugins BepInEx
+4. **Operadores Tokenizados**: Los operadores se representan como tokens específicos del lexer
+5. **Arrays Nativos**: Soporte completo para declaración y manipulación de arrays
+6. **Expresiones de Referencias**: Incluye `BREED()`, `BASE()`, y `PROP()` como expresiones especiales
+7. **Precedencia Implícita**: La precedencia de operadores está manejada por el parser mediante las reglas de precedencia
+8. **Compatibilidad**: Mantiene sintaxis familiar de C/C# con extensiones específicas para mods .NET
 
 ---
 

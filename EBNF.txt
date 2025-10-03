@@ -1,0 +1,131 @@
+program ::= declList 
+          | metadataDecl declList
+
+metadataDecl ::= '[' 'BEPINPLUGIN' '(' stringLiteral ',' stringLiteral ',' stringLiteral ')' ']'
+
+declList ::= decl 
+           | decl declList
+
+decl ::= type id '(' paramListOpt ')' block
+       | 'BREED' type id '(' paramListOpt ')' block
+       | 'BASE'  type id '(' paramListOpt ')' block
+       | 'HOOK'  type id '(' paramListOpt ')' block
+       | 'PROP'  type id '(' paramListOpt ')' block
+
+paramListOpt ::= () 
+               | paramList
+
+paramList ::= param 
+            | param ',' paramList
+
+param ::= 'CONST' type id
+        | type id
+
+type ::= 'ARRAY' type
+       | 'AUTO'
+       | 'VOID'
+       | 'STRING'
+       | 'CHAR'
+       | 'BOOL'
+       | 'FLOAT'
+       | 'INT'
+
+block ::= '{' statementList '}'
+
+statementList ::= statement 
+                | statementList statement
+
+statement ::= 'PRINT' '(' expr ')' ';'
+            | 'RETURN' ';'
+            | 'RETURN' expr ';'
+            | 'CONTINUE' ';'
+            | 'BREAK' ';'
+            | 'FOR' '(' forInit ';' forCondition ';' forUpdate ')' block
+            | 'WHILE' '(' expr ')' block
+            | 'IF' '(' expr ')' block
+            | 'IF' '(' expr ')' block 'ELSE' block
+            | functionCall ';'
+            | id 'decrement' ';'
+            | 'decrement' id ';'
+            | id 'increment' ';'
+            | id
+            | 'increment' id ';'
+            | id '[' expr ']' 'divide_assign' expr ';'
+            | id '[' expr ']' 'times_assign' expr ';'
+            | id '[' expr ']' 'minus_assign' expr ';'
+            | id '[' expr ']' 'plus_assign' expr ';'
+            | id '[' expr ']' 'assign' expr ';'
+            | id 'divide_assign' expr ';'
+            | id 'times_assign' expr ';'
+            | id 'minus_assign' expr ';'
+            | id 'plus_assign' expr ';'
+            | id 'assign' expr ';'
+            | type id '[' expr ']' 'assign' '[' exprList ']' ';'
+            | type id '[]' 'assign' '[' exprList ']' ';'
+            | type id '[' expr ']' ';'
+            | 'CONST' type id 'assign' expr ';'
+            | type id ';'
+            | type id 'assign' expr ';'
+
+forInit ::= () 
+          | id 'assign' expr
+          | type id 'assign' expr
+
+forCondition ::= () 
+               | expr
+
+forUpdate ::= () 
+            | incrementExpr
+            | assignmentExpr
+
+functionCall ::= id '(' argListOpt ')'
+
+argListOpt ::= () 
+             | argList
+
+argList ::= expr 
+          | argList ',' expr
+
+exprList ::= expr 
+           | exprList ',' expr
+
+assignmentExpr ::= id 'assign' expr
+
+incrementExpr ::= id 'decrement'
+                | 'decrement' id
+                | id 'increment'
+                | 'increment' id
+
+expr ::= 'BREED' '(' expr ')'
+       | 'BASE' '(' expr ')'
+       | 'PROP' '(' expr ')'
+       | id
+       | 'FALSE'
+       | 'TRUE'
+       | charLiteral
+       | stringLiteral
+       | 'STRING'
+       | floatLiteral
+       | integerLiteral
+       | functionCall
+       | '(' expr ')'
+       | '[]'
+       | '[' exprList ']'
+       | id '[' expr ']'
+       | incrementExpr
+       | '+' expr
+       | '-' expr
+       | 'NOT' expr
+       | expr 'OR' expr
+       | expr 'AND' expr
+       | expr 'GE' expr
+       | expr 'GT' expr
+       | expr 'LE' expr
+       | expr 'LT' expr
+       | expr 'NEQ' expr
+       | expr 'EQ' expr
+       | expr 'MODULO' expr
+       | expr 'DIVIDE' expr
+       | expr 'TIMES' expr
+       | expr 'MINUS' expr
+       | expr 'PLUS' expr
