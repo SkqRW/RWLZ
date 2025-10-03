@@ -38,7 +38,7 @@ El **LizardLexer** es el analizador léxico del compilador para el lenguaje de p
 | `FLOAT` | `float` | Punto flotante |
 | `BOOL` | `bool` | Booleano (true/false) |
 | `CHAR` | `char` | Carácter individual |
-| `STRING_TYPE` | `string` | Cadena de caracteres |
+| `STRING` | `string` | Cadena de caracteres |
 | `VOID` | `void` | Tipo vacío |
 | `CONST` | `const` | Modificador de constante |
 | `AUTO` | `auto` | Tipo automático |
@@ -369,4 +369,4 @@ El lexer actual incluye validación robusta para:
 
 ---
 
-*Esta documentación cubre la versión actual del LizardLexer para el compilador .rwlz*
+*Esta documentación cubre la versión 0.1 del LizardLexer para el compilador .rwlz*

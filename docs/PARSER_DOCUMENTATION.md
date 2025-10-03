@@ -18,11 +18,11 @@
 El **Lizard Language Parser** es un analizador sintáctico construido con **SLY (Sly Lex-Yacc)** que convierte una secuencia de tokens en un Árbol de Sintaxis Abstracta (AST). Este parser está específicamente diseñado para el lenguaje Lizard, un lenguaje de programación orientado a la creación de plugins para BepInEx.
 
 ### Características Principales
-- ✅ **609 líneas de código** organizadas en 11 secciones
-- ✅ **Soporte completo** para funciones Base, Breed y Normal
+- ✅ **544 líneas de código** organizadas en 8 secciones principales
+- ✅ **Soporte completo** para funciones Base, Breed, Hook y Normal
 - ✅ **Gramática robusta** con manejo de precedencias
-- ✅ **AST rico** con 20+ tipos de nodos
-- ✅ **Manejo de errores** integrado
+- ✅ **AST rico** con 25+ tipos de nodos especializados
+- ✅ **Manejo de errores** integrado con reportes detallados
 - ✅ **Documentación exhaustiva** con comentarios explicativos
 
 ---
@@ -33,17 +33,14 @@ El **Lizard Language Parser** es un analizador sintáctico construido con **SLY 
 
 | Sección | Líneas | Descripción |
 |---------|--------|-------------|
-| **🔧 Configuración** | 28-47 | Precedencias y configuración del parser |
-| **📄 Programa Principal** | 48-82 | Reglas para programa y metadata BepInEx |
-| **🎯 Funciones** | 83-123 | Definiciones de funciones (Base/Breed/Normal) |
-| **📝 Parámetros** | 124-179 | Manejo de parámetros y tipos de datos |
-| **📋 Statements** | 180-289 | Declaraciones y sentencias |
-| **🔄 Control Flow** | 290-336 | Estructuras de control (if, while, for) |
-| **📊 Assignments** | 337-432 | Asignaciones y operadores compuestos |
-| **⚡ Expressions** | 433-511 | Expresiones aritméticas y lógicas |
-| **🔢 Literals** | 512-569 | Literales y valores constantes |
-| **🎭 Special Expressions** | 570-587 | Expresiones especiales (prop, base, breed) |
-| **❌ Error Handling** | 588-609 | Manejo de errores de sintaxis |
+| **🔧 Configuración** | 7-28 | Imports, tokens, y precedencias del parser |
+| **📄 Programa Principal** | 31-53 | Reglas para programa y metadata BepInEx |
+| **🎯 Funciones** | 56-122 | Definiciones de funciones (Base/Breed/Hook/Normal) |
+| **📝 Parámetros y Tipos** | 125-175 | Manejo de parámetros y tipos de datos |
+| **📋 Statements** | 178-290 | Declaraciones, asignaciones y control de flujo |
+| **� Bucles For** | 293-328 | Reglas específicas para bucles for |
+| **⚡ Expressions** | 331-520 | Expresiones, operadores y literales |
+| **🎭 Expressions Especiales** | 523-544 | Expresiones especiales (prop, base, breed) |
 
 ### Dependencias
 
@@ -267,7 +264,7 @@ int result2 = (5 + 3) * 2;  // = 16
 #### Program
 ```python
 @dataclass
-class Program:
+class Program(Statement):
     metadata: Optional[Metadata]
     functions: List[Function]
 ```
@@ -275,34 +272,60 @@ class Program:
 #### Metadata (BepInEx)
 ```python
 @dataclass
-class Metadata:
-    plugin_id: str
-    plugin_name: str
-    plugin_version: str
+class Metadata(Statement):
+    ID: str
+    NAME: str
+    VERSION: str
 ```
 
 #### Funciones
 ```python
 @dataclass
-class BaseFunction:
+class Function(Node):
     name: str
-    return_type: Optional[Type]
     params: List[Parameter]
     body: Block
+    return_type: Optional[Type] = None
 
 @dataclass
-class BreedFunction:
-    name: str
-    return_type: Optional[Type]
-    params: List[Parameter]
-    body: Block
+class BaseFunction(Function):
+    """Function override creature stuff"""
+    pass
 
-@dataclass  
-class NormalFunction:
+@dataclass
+class BreedFunction(Function):
+    """Breed params to hook custom interactions"""
+    pass
+
+@dataclass
+class HookFunction(Function):
+    """External game hooks"""
+    pass
+
+@dataclass
+class NormalFunction(Function):
+    """Normal user-defined function"""
+    pass
+
+@dataclass
+class Parameter(Node):
     name: str
-    return_type: Optional[Type]
-    params: List[Parameter]
-    body: Block
+    param_type: Type
+```
+
+#### Tipos de Datos
+```python
+@dataclass
+class Type(Node):
+    name: str
+
+class LiteralType(Enum):
+    INT = "int"
+    FLOAT = "float"
+    STRING = "string"
+    CHAR = "char"
+    BOOLEAN = "boolean"
+    VOID = "void"
 ```
 
 ### Nodos de Expresiones
@@ -310,36 +333,79 @@ class NormalFunction:
 #### Operaciones Binarias
 ```python
 @dataclass
-class BinaryOperation:
+class BinOper(Expression):
+    operator: str
     left: Expression
-    operator: str  # +, -, *, /, %, ==, !=, <, >, <=, >=, &&, ||
     right: Expression
 ```
 
 #### Operaciones Unarias
 ```python
 @dataclass
-class UnaryOperation:
-    operator: str  # -, !
+class UnaryOper(Expression):
+    operator: str
     operand: Expression
 
 @dataclass
-class IncrementExpression:
+class IncrementExpression(Expression):
     variable: str
     operator: str  # ++, --
     is_prefix: bool
 ```
 
-#### Acceso a Arrays
+#### Variables y Literales
 ```python
 @dataclass
-class ArrayAccess:
+class Variable(Expression):
+    name: str
+
+@dataclass
+class Literal(Expression):
+    value: Union[int, float, str, bool]
+    type: Optional[LiteralType] = None
+
+@dataclass
+class Integer(Literal):
+    value: int
+
+@dataclass
+class Float(Literal):
+    value: float
+
+@dataclass
+class String(Literal):
+    value: str
+
+@dataclass
+class Char(Literal):
+    value: str
+
+@dataclass
+class Boolean(Literal):
+    value: bool
+```
+
+#### Arrays y Llamadas
+```python
+@dataclass
+class ArrayAccess(Expression):
     name: str
     index: Expression
 
 @dataclass
-class ArrayLiteral:
+class ArrayLiteral(Expression):
     elements: List[Expression]
+
+@dataclass
+class CallExpression(Expression):
+    name: str
+    arguments: List[Expression]
+
+@dataclass
+class AssignmentExpression(Expression):
+    variable: str
+    operator: str  # =, +=, -=, *=, /=
+    value: Expression
 ```
 
 ### Nodos de Statements
@@ -347,58 +413,103 @@ class ArrayLiteral:
 #### Declaraciones
 ```python
 @dataclass
-class VarDecl:
+class Block(Statement):
+    statements: List[Statement]
+
+@dataclass
+class VarDecl(Statement):
     var_type: Type
     name: str
-    value: Optional[Expression]
+    value: Optional[Literal] = None
     is_const: bool = False
 
 @dataclass
-class Assignment:
-    variable: str
-    value: Expression
+class ArrayDecl(Statement):
+    var_type: Type
+    name: str
+    size: Optional[Expression] = None
+    values: Optional[List[Expression]] = None
+    is_const: bool = False
 
 @dataclass
-class CompoundAssignment:
-    variable: str
-    operator: str  # +=, -=, *=, /=
-    value: Expression
+class Location(Expression):
+    pass
+
+@dataclass
+class VarLocation(Location):
+    name: str
+
+@dataclass
+class ArrayLocation(Location):
+    name: str
+    index: Expression
+
+@dataclass
+class Assignment(Statement):
+    target: Location
+    value: Optional[Expression] = None
+    operator: str = ""
+    is_prefix: Optional[bool] = None  # Only for ++/--
+
+@dataclass
+class FunctionCallStmt(Statement):
+    call: CallExpression
 ```
 
 #### Control de Flujo
 ```python
 @dataclass
-class IfStatement:
+class IfStatement(Statement):
     condition: Expression
     then_block: Block
     else_block: Optional[Block] = None
 
 @dataclass
-class WhileStatement:
+class WhileStatement(Statement):
     condition: Expression
     body: Block
 
 @dataclass
-class ForStatement:
-    init: Optional[Statement]
+class ForStatement(Statement):
+    init: Optional[Statement] 
     condition: Optional[Expression]
     update: Optional[Statement]
     body: Block
+
+@dataclass
+class BreakStatement(Statement):
+    pass
+
+@dataclass
+class ContinueStatement(Statement):
+    pass
+
+@dataclass
+class ReturnStatement(Statement):
+    value: Optional[Expression] = None
+
+@dataclass
+class PrintStatement(Statement):
+    expression: Expression
 ```
 
 ### Expresiones Especiales de Lizard
 
 ```python
 @dataclass
-class PropExpression:
-    variable: Expression
+class PropExpression(Expression):
+    variable: str
 
 @dataclass
-class BaseExpression:
+class BaseExpression(Expression):
     expression: Expression
 
 @dataclass
-class BreedExpression:
+class BreedExpression(Expression):
+    expression: Expression
+
+@dataclass
+class HookExpression(Expression):
     expression: Expression
 ```
 
@@ -422,6 +533,14 @@ El lenguaje Lizard soporta modificadores especiales para funciones:
 <breed> float ProcessDamage(float damage) {
     // Función que hereda comportamiento
     return damage * 1.5;
+}
+```
+
+#### `<hook>` - Función Hook
+```lizard
+<hook> void OnGameUpdate() {
+    // Función que se conecta a eventos del juego
+    print("Game update triggered");
 }
 ```
 
@@ -493,6 +612,12 @@ scores[i] *= 1.5;
     }
     
     return damage;
+}
+
+<hook> void OnPlayerJoined(string playerName) {
+    // Hook que se ejecuta cuando un jugador se une
+    print("Jugador conectado: " + playerName);
+    <prop>("playerCount")++;
 }
 
 int ProcessData() {
@@ -631,25 +756,25 @@ result = (-x) + y;  // ✅ Interpretación correcta
 ## Estadísticas del Parser
 
 ### Métricas de Código
-- **📊 Total de líneas**: 609
-- **🎯 Reglas gramaticales**: ~80 reglas
-- **🔧 Tipos de nodos AST**: 25+ tipos
-- **⚡ Tokens soportados**: 30+ tokens
-- **📋 Precedencias definidas**: 9 niveles
+- **📊 Total de líneas**: 544
+- **🎯 Reglas gramaticales**: ~65 reglas implementadas
+- **🔧 Tipos de nodos AST**: 25+ tipos especializados
+- **⚡ Tokens soportados**: 30+ tokens del lexer
+- **📋 Precedencias definidas**: 9 niveles de precedencia
 
 ### Capacidades
-- ✅ **Funciones procesadas**: Base, Breed, Normal
-- ✅ **Statements soportados**: 15+ tipos
-- ✅ **Expresiones**: Aritméticas, lógicas, especiales
-- ✅ **Control de flujo**: if, while, for, break, continue
-- ✅ **Arrays**: Declaración, acceso, literales
-- ✅ **Operadores**: Básicos, compuestos, unarios
+- ✅ **Funciones procesadas**: Base, Breed, Hook, Normal
+- ✅ **Statements soportados**: 15+ tipos (VarDecl, ArrayDecl, Assignment, etc.)
+- ✅ **Expresiones**: Aritméticas, lógicas, especiales (prop, base, breed, hook)
+- ✅ **Control de flujo**: if/else, while, for, break, continue, return
+- ✅ **Arrays**: Declaración, acceso, literales, asignaciones
+- ✅ **Operadores**: Básicos, compuestos, unarios, incremento/decremento
 
 ### Rendimiento
-- **🚀 Parsing speed**: ~318 tokens procesados eficientemente
-- **💾 Memory usage**: AST optimizado con dataclasses
-- **🔄 Error recovery**: Manejo robusto de errores
-- **📈 Scalability**: Arquitectura extensible
+- **🚀 Parsing speed**: Procesamiento eficiente con SLY
+- **💾 Memory usage**: AST optimizado con dataclasses y tipos
+- **🔄 Error recovery**: Manejo robusto con reportes de línea
+- **📈 Scalability**: Arquitectura modular y extensible
 
 ---
 
