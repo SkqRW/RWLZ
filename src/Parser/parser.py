@@ -11,7 +11,7 @@ class LizardParser(Parser):
     
     # Importar tokens del lexer
     tokens = LizardLexer.tokens
-    debugfile = 'LizardParser.out'
+    #debugfile = 'LizardParser.out'
 
     # Precedencias para expresiones (para evitar ambigüedad)
     # Orden: menor precedencia (arriba) a mayor precedencia (abajo)

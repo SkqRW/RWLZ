@@ -16,6 +16,7 @@ int Initialize(int maxHealth, float powerMultiplier) {
     playerHealth += 50;
     damage *= powerMultiplier;
     scores[0] = scores[0] + 5;
+    scores[0] = "hola"
     
     // Bucle for con incremento
     for (int i = 0; i < 5; ++i) {
@@ -69,7 +70,7 @@ float CalculateDamage(float baseDamage, bool isCritical) {
 
 // Función con bucles anidados y arrays
 int ProcessMatrix() {
-    array int matrix[10];
+    int matrix[10];
     
     for (int i = 0; i < 10; i++) {
         matrix[i] = i * 2;

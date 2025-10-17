@@ -1,23 +1,40 @@
 from Lexer.lexer import LizardLexer
 
 """
-uso: bminor.py [-h] [-v] [--scan | --dot | --sym] [filename]
+Usage: rwlz.py [-h] [-v] [--scan | --dot | --sym | --check] [filename]
 
-Compilador para programas B-Minor
+RWLZ Language Compiler
 
-opciones:
-    -h, --help            Muestra este mensaje de ayuda y sale
-    -v, --version         Muestra la información de versión y sale
+Options:
+    -h, --help            Show this help message and exit
+    -v, --version         Show version information and exit
 
-Opciones de formato:
-    --scan                Ejecuta el lexer y muestra los tokens
-    --dot                 Genera un archivo DOT para el AST
-    --sym                 Muestra la tabla de símbolos
-    [filename]            El archivo fuente a compilar
+Format options:
+    --scan                Run the lexer and show tokens
+    --dot                 Generate a DOT file for the AST
+    --png                 Generate a PNG image of the AST
+    --sym                 Show the symbol table
+    --check               Perform semantic analysis and type checking
+    [filename]            The source file to compile
 
 """
 
-#argparse
+import argparse
+import sys
+import os
+import subprocess
+import platform
+
+from rich import print
+from rich.console import Console
+from rich.table import Table
+from rich.tree import Tree
+
+from Lexer.lexer import LizardLexer
+from Parser.parser import LizardParser
+from Semantic.checker import SemanticChecker
+from Utils.ast_printer import print_ast, print_ast_summary, generate_png
+from Utils.errors import reset_errors, get_error_count
 
 import argparse
 import ast
@@ -36,18 +53,18 @@ from Utils.ast_printer import print_ast, print_ast_summary, generate_png
 
 # Function to show usage information
 def usage(exit_code=1):
-    print("[blue]Usage: bminor.py --option filename[/blue]", file=sys.stderr)
+    print("[blue]Usage: rwlz.py --option filename[/blue]", file=sys.stderr)
     sys.exit(exit_code)
 
 # Function to parse command line arguments
 def parse_args():
     cli = argparse.ArgumentParser(
         prog="rwlz.py",
-        description="Compilador para B-Minor"
+        description="RWLZ Language Compiler"
     )
     cli.add_argument("-v", "--version", action="version", version="0.1")
 
-    fgroup = cli.add_argument_group("Formateado opciones")
+    fgroup = cli.add_argument_group("Format options")
     cli.add_argument("filename", 
                      type=str,
                      nargs="?",
@@ -56,8 +73,9 @@ def parse_args():
     mutex = fgroup.add_mutually_exclusive_group()
     mutex.add_argument("--scan", action="store_true", default=False, help="Run the lexer and show tokens")
     mutex.add_argument("--dot", action="store_true", default=False, help="Generate DOT file for AST")
-    mutex.add_argument("--sym", action="store_true", default=False, help="Show symbol table")
     mutex.add_argument("--png", action="store_true", default=False, help="Generate PNG image of AST using Graphviz")
+    mutex.add_argument("--sym", action="store_true", default=False, help="Show symbol table")
+    mutex.add_argument("--check", action="store_true", default=False, help="Perform semantic analysis")
 
     return cli.parse_args()
 
@@ -87,30 +105,24 @@ def print_tokens(tokens):
     print(f"\n✅ [green]Total tokens processed: {len(tokens)}[/green]")
 
 def check_invalid_args():
-    valid_options = {"--scan", "--dot", "--sym", "--png", "-h", "--help", "-v", "--version"}
+    valid_options = {"--scan", "--dot", "--sym", "--png", "--check", "-h", "--help", "-v", "--version"}
     args = sys.argv[1:]
     for arg in args:
         if arg.startswith("-") and arg not in valid_options:
-            return arg  # Retorna el argumento inválido
+            return arg  # Return the invalid argument
     return None
 
 def main():
     if(len(sys.argv) == 1):
         usage()
 
-    #if(len(sys.argv) > 3):
-    #    usage()
-    #    return  
-    
-
     invalid_arg = check_invalid_args()
     if invalid_arg:
-        print(f"❌ [red]Error: Argumento inválido '{invalid_arg}'. Use -h para ver las opciones disponibles.[/red]")
+        print(f"❌ [red]Error: Invalid argument '{invalid_arg}'. Use -h to see available options.[/red]")
         sys.exit(1)
 
     args = parse_args()
     
-
     if args.filename:
         fname = args.filename
         # Validation of .rwlz extension
@@ -118,53 +130,117 @@ def main():
             usage()
             return
 
-        with open(fname, encoding="utf-8") as file:
-            source = file.read()
+        # Read source file
+        try:
+            with open(fname, encoding="utf-8") as file:
+                source = file.read()
+        except FileNotFoundError:
+            print(f"❌ [red]Error: File '{fname}' not found.[/red]")
+            return
+        except Exception as e:
+            print(f"❌ [red]Error reading file: {e}[/red]")
+            return
         
+        # Reset error counter
+        reset_errors()
+        
+        # Lexical analysis
         try:
             lexer = LizardLexer()
             tokens = list(lexer.tokenize(source))
             
             if args.scan:
                 print_tokens(tokens)
+                return
+                
         except Exception as e:
-            print(f"❌ [red]Error durante el análisis léxico: {e}[/red]")
+            print(f"❌ [red]Error during lexical analysis: {e}[/red]")
             import traceback
             traceback.print_exc()
             return
-
         
+        # Check for lexical errors
+        if get_error_count() > 0:
+            print(f"❌ [red]Lexical analysis failed with {get_error_count()} error(s).[/red]")
+            return
+        
+        # Syntax analysis (parsing)
         try:
             parser = LizardParser()
             ast = parser.parse(lexer.tokenize(source))
             
             if ast is None:
-                print("❌ [red]Error: No se pudo parsear el archivo. Verifica la sintaxis.[/red]")
+                print("❌ [red]Error: Could not parse the file. Check the syntax.[/red]")
                 return
             
-            print(f"✅ [green]Parsing exitoso! AST generado: {type(ast).__name__}[/green]")
+            print(f"✅ [green]Parsing successful! AST generated: {type(ast).__name__}[/green]")
             
+            # Generate DOT file if requested
             if args.dot:
                 print_ast(ast)
+                return
             
+            # Generate PNG if requested
             if args.png:
-                # Generar nombre del archivo basado en el archivo fuente
                 base_name = fname.replace('.rwlz', '')
                 generate_png(ast, f"{base_name}_ast")
-            
+                return
                 
         except Exception as e:
-            print(f"❌ [red]Error durante el parsing: {e}[/red]")
+            print(f"❌ [red]Error during parsing: {e}[/red]")
             import traceback
             traceback.print_exc()
             return
         
-        # Mostrar información resumida del AST
+        # Show AST summary
         print_ast_summary(ast)
-
+        
+        # Semantic analysis
+        if args.check or args.sym:
+            print("\n" + "="*60)
+            print("🔍 [cyan]Starting Semantic Analysis...[/cyan]")
+            print("="*60 + "\n")
+            
+            try:
+                checker = SemanticChecker()
+                success = checker.check(ast)
+                
+                stats = checker.get_statistics()
+                
+                # Show symbol table if requested
+                if args.sym:
+                    print("\n" + "="*60)
+                    print("📋 [cyan]Symbol Table:[/cyan]")
+                    print("="*60 + "\n")
+                    checker.print_symbol_table()
+                
+                # Print results
+                print("\n" + "="*60)
+                print("📊 [cyan]Semantic Analysis Results:[/cyan]")
+                print("="*60)
+                
+                if success:
+                    print(f"✅ [green]Semantic analysis completed successfully![/green]")
+                    if stats['warnings'] > 0:
+                        print(f"⚠️  [yellow]{stats['warnings']} warning(s) found[/yellow]")
+                else:
+                    print(f"❌ [red]Semantic analysis failed with {stats['errors']} error(s)[/red]")
+                    if stats['warnings'] > 0:
+                        print(f"⚠️  [yellow]Also found {stats['warnings']} warning(s)[/yellow]")
+                
+                print("="*60 + "\n")
+                
+            except Exception as e:
+                print(f"❌ [red]Error during semantic analysis: {e}[/red]")
+                import traceback
+                traceback.print_exc()
+                return
 
 
 if __name__ == '__main__':
     main()
 
-# python rwlz.py --scan ..\Test\Lizard.rwlz
+# Example usage:
+# python rwlz.py --scan ../Test/Lizard.rwlz
+# python rwlz.py --check ../Test/ComplexLizard.rwlz
+# python rwlz.py --sym ../Test/ComplexLizard.rwlz

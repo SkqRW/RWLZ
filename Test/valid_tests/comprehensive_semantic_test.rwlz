@@ -1,0 +1,193 @@
+// Comprehensive semantic test for RWLZ
+// Tests all major semantic features
+
+// Function with proper return type
+int fibonacci(int n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+// Function with array parameters
+float arraySum(array int values, int size) {
+    int sum = 0;
+    for (int i = 0; i < size; ++i) {
+        sum = sum + values[i];
+    }
+    float result = sum;
+    return result;
+}
+
+// Function demonstrating type compatibility
+bool isPositive(int value) {
+    return value > 0;
+}
+
+// Function with multiple control flows
+int findMax(array int numbers, int count) {
+    if (count <= 0) {
+        return 0;
+    }
+    
+    int max = numbers[0];
+    int i = 1;
+    
+    while (i < count) {
+        if (numbers[i] > max) {
+            max = numbers[i];
+        }
+        ++i;
+    }
+    
+    return max;
+}
+
+// Main function with comprehensive tests
+int main() {
+    // ===== Variable Declarations =====
+    int integer = 42;
+    float floating = 3.14;
+    bool boolean = true;
+    
+    // Const variables
+    const int MAX_SIZE = 100;
+    const float PI = 3.14159;
+    
+    // ===== Array Declarations =====
+    array int integers = [1, 2, 3, 4, 5];
+    array float floats = [1.1, 2.2, 3.3];
+    array bool flags = [true, false, true];
+    
+    // ===== Type Compatibility =====
+    // Implicit type promotion: int -> float
+    float promoted = integer;
+    
+    // ===== Arithmetic Operations =====
+    int sum = integer + 10;
+    int difference = integer - 5;
+    int product = integer * 2;
+    int quotient = integer / 2;
+    int modulo = integer % 3;
+    
+    float fsum = floating + 2.5;
+    float fproduct = floating * 2.0;
+    
+    // ===== Comparison Operations =====
+    bool equal = integer == 42;
+    bool notEqual = integer != 0;
+    bool lessThan = integer < 100;
+    bool lessOrEqual = integer <= 42;
+    bool greaterThan = floating > 3.0;
+    bool greaterOrEqual = floating >= 3.14;
+    
+    // ===== Logical Operations =====
+    bool andResult = boolean && equal;
+    bool orResult = boolean || equal;
+    bool notResult = !boolean;
+    
+    // ===== Compound Assignments =====
+    integer += 5;
+    floating *= 2.0;
+    sum -= 3;
+    product /= 2;
+    
+    // ===== Increment/Decrement =====
+    ++integer;
+    integer++;
+    --sum;
+    sum--;
+    
+    // ===== Array Access =====
+    int firstInt = integers[0];
+    integers[1] = 100;
+    
+    float secondFloat = floats[1];
+    floats[2] = 5.5;
+    
+    // ===== Array Operations in Loop =====
+    for (int i = 0; i < 5; ++i) {
+        integers[i] = integers[i] * 2;
+    }
+    
+    // ===== Control Flow =====
+    
+    // If-else with proper boolean condition
+    if (integer > 50 && boolean) {
+        sum = sum + integer;
+    } else {
+        sum = sum - integer;
+    }
+    
+    // Nested if
+    if (floating > 0.0) {
+        if (integer > 0) {
+            product = integer * 2;
+        }
+    }
+    
+    // While loop
+    int counter = 0;
+    while (counter < 10) {
+        counter = counter + 1;
+        
+        if (counter == 5) {
+            continue;  // Valid: inside loop
+        }
+        
+        if (counter > 8) {
+            break;  // Valid: inside loop
+        }
+    }
+    
+    // For loop with proper initialization
+    for (int j = 0; j < 3; ++j) {
+        for (int k = 0; k < 3; ++k) {
+            integers[0] = integers[0] + 1;
+        }
+    }
+    
+    // ===== Function Calls =====
+    int fib = fibonacci(10);
+    float avgSum = arraySum(integers, 5);
+    bool positive = isPositive(integer);
+    int maximum = findMax(integers, 5);
+    
+    // ===== Scoping Tests =====
+    {
+        int scoped = 999;  // New variable in block scope
+        scoped = scoped + 1;
+    }
+    // scoped is not accessible here
+    
+    {
+        int another = 777;
+        {
+            int nested = 555;
+            another = another + nested;
+        }
+    }
+    
+    // ===== Return =====
+    return 0;
+}
+
+// Void function
+void printInfo(int value) {
+    if (value > 0) {
+        print("Positive");
+    } else {
+        print("Non-positive");
+    }
+    return;  // Valid: void return
+}
+
+// Function using all parameter types
+int complexFunction(int a, float b, bool c, array int d) {
+    if (c) {
+        return a + d[0];
+    } else {
+        float temp = b * 2.0;
+        return a;
+    }
+}

@@ -1,0 +1,9 @@
+// TEST: Función básica con operaciones aritméticas simples
+[BepInPlugin("TestMod", "Basic Function Test", "1.0")]
+
+/* Test básico con función simple */
+
+int Add(int a, int b) {
+    int xx = 10;
+    return 10;
+}

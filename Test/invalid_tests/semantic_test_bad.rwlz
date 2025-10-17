@@ -1,0 +1,72 @@
+// Invalid semantic test for RWLZ
+// This file contains various semantic errors for testing
+
+int badFunction(int x, float y) {
+    // Error: variable already declared in same scope
+    int x = 10;
+    
+    // Error: const variable not initialized
+    const int MAX;
+    
+    // Error: type mismatch in assignment
+    int a = 3.14;
+    
+    // Error: undefined variable
+    int b = undefinedVar + 5;
+    
+    // Error: array index not integer
+    array int arr = [1, 2, 3];
+    int val = arr[3.5];
+    
+    // Error: condition not boolean
+    if (x + y) {
+        a = 10;
+    }
+    
+    // Error: incompatible types in operation
+    bool result = x + true;
+    
+    // Error: break outside loop
+    break;
+    
+    // Error: should return int but returns float
+    return 3.14;
+}
+
+void voidFunc() {
+    // Error: void function returning value
+    return 42;
+}
+
+int noReturnFunc(int x) {
+    // Error: non-void function missing return
+    int y = x + 1;
+}
+
+int main() {
+    // Error: modifying const variable
+    const int CONSTANT = 100;
+    CONSTANT = 200;
+    
+    // Error: wrong number of arguments
+    int result = badFunction(5);
+    
+    // Error: wrong argument types
+    badFunction(true, "hello");
+    
+    // Error: calling undefined function
+    int x = undefinedFunction(10);
+    
+    // Error: increment on non-numeric type
+    bool flag = true;
+    ++flag;
+    
+    // Error: array element type mismatch
+    array int numbers = [1, 2, "three", 4];
+    
+    // Error: variable redeclaration
+    int duplicate = 5;
+    float duplicate = 3.14;
+    
+    return 0;
+}

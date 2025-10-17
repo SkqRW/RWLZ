@@ -1,0 +1,30 @@
+// Demonstration of ERROR type recovery
+// This file has multiple errors to show how ERROR type helps
+
+int testErrorRecovery() {
+    // Error 1: undefinedVar doesn't exist
+    int x = undefinedVar + 5;
+    
+    // Error 2: anotherUndefined doesn't exist
+    // But analyzer continues thanks to ERROR type!
+    int y = anotherUndefined * 2;
+    
+    // Error 3: Can't add the results (both are ERROR types)
+    // But analyzer still continues!
+    int z = x + y;
+    
+    // Error 4: yetAnother doesn't exist
+    int result = yetAnother - z;
+    
+    return result;
+}
+
+int main() {
+    // Error 5: badFunc doesn't exist
+    int value = badFunc(10, 20);
+    
+    // Error 6: Can't use undefined in expression
+    int total = value + missingVariable;
+    
+    return 0;
+}
