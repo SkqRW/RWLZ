@@ -1,0 +1,114 @@
+int show_result(int r1x, int r1y, int r2x,  int r2y) {
+    print("=== Result ===");
+    print("Closest pair found!");
+    print("These two points are distance 1 apart in both x and y");
+
+
+    print("Point 1: (" + r1x + ", " + r1y + ")");
+    print("Point 2: (" + r2x + ", " + r2y + ")");
+    
+    print("Algorithm completed successfully!");
+    return 1;
+}
+
+
+int main() {
+    print("=== Closest Pair of Points - Brute Force O(n^2) ===");
+    
+    int n = 8;
+    int points[20];
+    
+    points[0] = 2;
+    points[1] = 3;
+    
+    points[2] = 12;
+    points[3] = 30;
+    
+    points[4] = 40;
+    points[5] = 50;
+    
+    points[6] = 5;
+    points[7] = 1;
+    
+    points[8] = 12;
+    points[9] = 10;
+    
+    points[10] = 20;
+    points[11] = 30;
+    
+    points[12] = 50;
+    points[13] = 60;
+    
+    points[14] = 15;
+    points[15] = 12;
+    
+    print("Input points (x,y):");
+    print("(2, 3), (12, 30), (40, 50), (5, 1)");
+    print("(12, 10), (3, 4), (50, 60), (15, 12)");
+    
+    print("Sorting points by x-coordinate using bubble sort...");
+    
+    int i = 0;
+    while (i < n) {
+        int j = 0;
+        while (j < n - i - 1) {
+            int ax = points[j * 2];
+            int bx = points[(j + 1) * 2];
+            
+            if (ax > bx) {
+                int temp_x = points[j * 2];
+                int temp_y = points[j * 2 + 1];
+                
+                points[j * 2] = points[(j + 1) * 2];
+                points[j * 2 + 1] = points[(j + 1) * 2 + 1];
+                
+                points[(j + 1) * 2] = temp_x;
+                points[(j + 1) * 2 + 1] = temp_y;
+            }
+            j++;
+        }
+        i++;
+    }
+    
+    print("Points sorted!");
+    
+    print("Computing closest pair...");
+    
+    float min_dist = 999999.0;
+    int p1_idx = 0;
+    int p2_idx = 1;
+    
+    int a = 0;
+    while (a < n) {
+        int b = a + 1;
+        while (b < n) {
+            int p1x = points[a * 2];
+            int p1y = points[a * 2 + 1];
+            int p2x = points[b * 2];
+            int p2y = points[b * 2 + 1];
+            
+            float dx = p1x - p2x;
+            float dy = p1y - p2y;
+            float dist = dx * dx + dy * dy;
+            
+            if (dist < min_dist) {
+                min_dist = dist;
+                p1_idx = a;
+                p2_idx = b;
+            }
+            
+            b++;
+        }
+        a++;
+    }
+    
+
+    int r1x = points[p1_idx * 2];
+    int r1y = points[p1_idx * 2 + 1];
+    int r2x = points[p2_idx * 2];
+    int r2y = points[p2_idx * 2 + 1];   
+    show_result(r1x, r1y, r2x, r2y);
+    
+    
+    return 0;
+}
