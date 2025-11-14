@@ -366,11 +366,14 @@ class SemanticChecker:
     
     def visit_IfStatement(self, node: IfStatement) -> None:
         """Visit an if statement"""
-        # Check condition type
+        # Check condition type - accept boolean or numeric (like C: 0=false, non-zero=true)
         cond_type = self.visit(node.condition)
-        if cond_type and not self.type_system.is_boolean(cond_type):
-            error(f"If condition must be boolean, got '{cond_type}'", node.lineno)
-            self.errors += 1
+        if cond_type:
+            is_valid = (self.type_system.is_boolean(cond_type) or 
+                       self.type_system.is_numeric(cond_type)) and not cond_type.is_array
+            if not is_valid:
+                error(f"If condition must be boolean or numeric, got '{cond_type}'", node.lineno)
+                self.errors += 1
         
         # Visit then block
         self.visit(node.then_block)
@@ -381,11 +384,14 @@ class SemanticChecker:
     
     def visit_WhileStatement(self, node: WhileStatement) -> None:
         """Visit a while loop"""
-        # Check condition type
+        # Check condition type - accept boolean or numeric (like C: 0=false, non-zero=true)
         cond_type = self.visit(node.condition)
-        if cond_type and not self.type_system.is_boolean(cond_type):
-            error(f"While condition must be boolean, got '{cond_type}'", node.lineno)
-            self.errors += 1
+        if cond_type:
+            is_valid = (self.type_system.is_boolean(cond_type) or 
+                       self.type_system.is_numeric(cond_type)) and not cond_type.is_array
+            if not is_valid:
+                error(f"While condition must be boolean or numeric, got '{cond_type}'", node.lineno)
+                self.errors += 1
         
         # Visit body with loop context
         old_in_loop = self.in_loop
@@ -402,12 +408,15 @@ class SemanticChecker:
         if node.init:
             self.visit(node.init)
         
-        # Check condition type
+        # Check condition type - accept boolean or numeric (like C: 0=false, non-zero=true)
         if node.condition:
             cond_type = self.visit(node.condition)
-            if cond_type and not self.type_system.is_boolean(cond_type):
-                error(f"For loop condition must be boolean, got '{cond_type}'", node.lineno)
-                self.errors += 1
+            if cond_type:
+                is_valid = (self.type_system.is_boolean(cond_type) or 
+                           self.type_system.is_numeric(cond_type)) and not cond_type.is_array
+                if not is_valid:
+                    error(f"For loop condition must be boolean or numeric, got '{cond_type}'", node.lineno)
+                    self.errors += 1
         
         # Visit update
         if node.update:
@@ -860,8 +869,6 @@ class SymbolTablePrinter:
         title = f"[bold cyan]symbol table: {func_name}[/bold cyan]"
         if func_symbol and func_symbol.lineno > 0:
             location = f" (defined at line {func_symbol.lineno}"
-            if func_symbol.colno > 0:
-                location += f", col {func_symbol.colno}"
             location += ")"
             title += f" [dim]{location}[/dim]"
         

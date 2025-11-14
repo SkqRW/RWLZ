@@ -52,6 +52,7 @@ class Program(Statement):
     """ Main Node of the language """
     metadata: Optional['Metadata']
     functions: List['Function']
+    globals: List[Union['VarDecl', 'ArrayDecl']] = field(default_factory=list)
 
 @dataclass
 class Metadata(Statement):

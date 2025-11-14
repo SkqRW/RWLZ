@@ -61,6 +61,7 @@ class TypeSystem:
     PROMOTION_RULES = {
         BaseType.INT: {BaseType.FLOAT},
         BaseType.CHAR: {BaseType.INT, BaseType.STRING},
+        BaseType.BOOL: {BaseType.INT},  # Allow bool to int conversion (false=0, true=1)
     }
     
     @staticmethod
@@ -209,10 +210,15 @@ class TypeSystem:
     def check_logical_operation(op: str, left_type: RWLZType, right_type: RWLZType) -> Optional[RWLZType]:
         """
         Check if a logical operation is valid and return bool type.
+        Accepts both boolean and numeric types (like C: 0=false, non-zero=true).
         Returns None if the operation is invalid.
         """
         if op in TypeSystem.LOGICAL_OPS:
-            if TypeSystem.is_boolean(left_type) and TypeSystem.is_boolean(right_type):
+            # Accept both boolean and numeric types for logical operations
+            left_valid = TypeSystem.is_boolean(left_type) or TypeSystem.is_numeric(left_type)
+            right_valid = TypeSystem.is_boolean(right_type) or TypeSystem.is_numeric(right_type)
+            
+            if left_valid and right_valid and not left_type.is_array and not right_type.is_array:
                 return RWLZType(base_type=BaseType.BOOL)
         
         return None
@@ -226,9 +232,9 @@ class TypeSystem:
         if operand_type.is_array:
             return None
 
-        # Logical NOT - requires boolean >:(
+        # Logical NOT - accepts boolean or numeric types (like C: 0=false, non-zero=true)
         if op == '!':
-            if TypeSystem.is_boolean(operand_type):
+            if TypeSystem.is_boolean(operand_type) or TypeSystem.is_numeric(operand_type):
                 return RWLZType(base_type=BaseType.BOOL)
         
         # Unary minus/plus - requires numeric

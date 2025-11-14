@@ -71,8 +71,8 @@ class LizardLexer(Lexer):
     OR = r'\|\|'
     NOT = r'!'
 
-    # Strings entre comillas
-    STRING = r'\".*?\"'
+    # NOTE: STRING token removed - using STRING_LITERAL instead for escape sequence support
+    # STRING = r'\".*?\"'
     
     # Definimos todos los tokens en un diccionario para fácil referencia
     keywords = {
@@ -102,7 +102,9 @@ class LizardLexer(Lexer):
         'int': 'INT',
         'float': 'FLOAT',
         'bool': 'BOOL',
+        'char': 'CHAR',
         'string': 'STRING',
+        'void': 'VOID',
         'const': 'CONST',
         
         # Operadores de comparación
@@ -140,8 +142,8 @@ class LizardLexer(Lexer):
     # Expresiones regulares para literales
     FLOAT_LITERAL = r'([0-9]+\.[0-9]+([eE][+-]?[0-9]+)?)|([0-9]+[eE][+-]?[0-9]+)'  # Números flotantes
     INTEGER_LITERAL = r'0|[1-9][0-9]*'  # Números enteros
-    CHAR_LITERAL = r"\'([\x20-\x7E]|\\([abefnrtv\\’\”]|0x[0-9a-fA-F]{2}))\'"  # Caracteres
-    STRING_LITERAL = r'\"([\x20-\x7E]|\\([abefnrtv\\’\”]|0x[0-9a-fA-F]{2}))*\"'  # Cadenas de texto
+    CHAR_LITERAL = r"\'([\x20-\x7E]|\\([abefnrtv\\'\"]|0x[0-9a-fA-F]{2}))\'"  # Caracteres
+    STRING_LITERAL = r'"([^"\n\\]|\\([abefnrtv\\\'""]|0x[0-9a-fA-F]{2}))*"'  # Cadenas de texto (excluye comillas sin escape)
 
     @_(r'([0-9]+\.[0-9]+([eE][+-]?[0-9]+)?)|([0-9]+[eE][+-]?[0-9]+)')
     def FLOAT(self, t):

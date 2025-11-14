@@ -76,6 +76,7 @@ def parse_args():
     mutex.add_argument("--png", action="store_true", default=False, help="Generate PNG image of AST using Graphviz")
     mutex.add_argument("--sym", action="store_true", default=False, help="Show symbol table")
     mutex.add_argument("--check", action="store_true", default=False, help="Perform semantic analysis")
+    mutex.add_argument("--compile", action="store_true", default=False, help="Compile to executable")
 
     return cli.parse_args()
 
@@ -105,7 +106,7 @@ def print_tokens(tokens):
     print(f"\n✅ [green]Total tokens processed: {len(tokens)}[/green]")
 
 def check_invalid_args():
-    valid_options = {"--scan", "--dot", "--sym", "--png", "--check", "-h", "--help", "-v", "--version"}
+    valid_options = {"--scan", "--dot", "--sym", "--png", "--check", "--compile", "-h", "--help", "-v", "--version"}
     args = sys.argv[1:]
     for arg in args:
         if arg.startswith("-") and arg not in valid_options:
@@ -196,7 +197,7 @@ def main():
         print_ast_summary(ast)
         
         # Semantic analysis
-        if args.check or args.sym:
+        if args.check or args.sym or args.compile:
             print("\n" + "="*60)
             print("🔍 [cyan]Starting Semantic Analysis...[/cyan]")
             print("="*60 + "\n")
@@ -229,6 +230,54 @@ def main():
                         print(f"⚠️  [yellow]Also found {stats['warnings']} warning(s)[/yellow]")
                 
                 print("="*60 + "\n")
+                
+                # If compilation is requested and semantic analysis passed
+                if args.compile and success:
+                    print("\n" + "="*60)
+                    print("⚙️  [cyan]Starting Code Generation...[/cyan]")
+                    print("="*60 + "\n")
+                    
+                    try:
+                        from LLVM.codegen import LLVMCodeGenerator
+                        from LLVM.compiler import LLVMCompiler
+                        
+                        # Generate LLVM IR from AST
+                        # Pass the symbol table from semantic checker to code generator
+                        codegen = LLVMCodeGenerator(symtab=checker.symtab)
+                        ir_code = codegen.generate(ast)
+                        
+                        # Prepare file names
+                        base_name = fname.replace('.rwlz', '')
+                        ir_file = f"{base_name}.ll"
+                        output_file = base_name
+                        
+                        print(f"📝 [cyan]Generated LLVM IR:[/cyan]")
+                        print("-"*60)
+                        print(ir_code)
+                        print("-"*60 + "\n")
+                        
+                        # Compile IR to executable
+                        print("🔨 [cyan]Compiling to executable...[/cyan]")
+                        compiler = LLVMCompiler()
+                        compiler.compile_to_executable(
+                            ir_code=ir_code,
+                            output_filename=output_file,
+                            ir_filename=ir_file,
+                            keep_object=False
+                        )
+                        
+                        print(f"✅ [green]Compilation successful![/green]")
+                        print(f"📦 Executable: [yellow]{output_file}[/yellow]")
+                        print(f"📄 LLVM IR: [yellow]{ir_file}[/yellow]")
+                        
+                    except Exception as e:
+                        print(f"❌ [red]Error during code generation: {e}[/red]")
+                        import traceback
+                        traceback.print_exc()
+                        return
+                elif args.compile and not success:
+                    print("❌ [red]Cannot compile due to semantic errors.[/red]")
+                    return
                 
             except Exception as e:
                 print(f"❌ [red]Error during semantic analysis: {e}[/red]")
