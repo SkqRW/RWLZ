@@ -22,10 +22,6 @@ class BaseType(Enum):
 
 @dataclass
 class RWLZType:
-    """
-    Represents a type in the RWLZ language.
-    Can be a basic type or an array type.
-    """
     base_type: BaseType
     is_array: bool = False
     is_const: bool = False
@@ -60,8 +56,9 @@ class TypeSystem:
     # Type promotion rules (from -> to)
     PROMOTION_RULES = {
         BaseType.INT: {BaseType.FLOAT},
+        BaseType.FLOAT: {BaseType.INT},  # Allow implicit float to int conversion (with truncation)
         BaseType.CHAR: {BaseType.INT, BaseType.STRING},
-        BaseType.BOOL: {BaseType.INT},  # Allow bool to int conversion (false=0, true=1)
+        BaseType.BOOL: {BaseType.INT},  
     }
     
     @staticmethod

@@ -1058,8 +1058,12 @@ class LLVMCodeGenerator:
         
         # Evaluate all argument expressions
         args = []
-        for arg_expr in node.arguments:
+        for i, arg_expr in enumerate(node.arguments):
             arg_value = self.visit(arg_expr)
+            # Convert argument to expected type if needed
+            if i < len(func.args):
+                expected_type = func.args[i].type
+                arg_value = self._convert_type(arg_value, expected_type)
             args.append(arg_value)
         
         # Check argument count matches
