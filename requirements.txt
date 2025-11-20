@@ -1,2 +1,4 @@
 sly
 rich
+graphviz
+llvmlite
